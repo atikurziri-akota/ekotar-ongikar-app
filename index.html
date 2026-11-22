@@ -128,6 +128,10 @@
     </form>
 
     <p id="memberMessage" role="status"></p>
+    <hr>
+<h3>সদস্য তালিকা</h3>
+<button id="loadMembersButton" type="button">সদস্য তালিকা দেখুন</button>
+<div id="memberList">এখনো তালিকা লোড হয়নি।</div>
     <button id="logoutButton" type="button">লগআউট</button>
   </main>
 
@@ -251,6 +255,38 @@
         await supabaseClient.auth.signOut();
         location.reload();
       });
+    document.getElementById("loadMembersButton")
+  .addEventListener("click", async function() {
+    const list = document.getElementById("memberList");
+    list.textContent = "সদস্য তালিকা লোড হচ্ছে...";
+
+    const { data, error } = await supabaseClient
+      .from("members")
+      .select("member_no, full_name, phone, status")
+      .order("member_no", { ascending: true });
+
+    if (error) {
+      list.textContent = "তালিকা লোড হয়নি: " + error.message;
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      list.textContent = "কোনো সদস্য পাওয়া যায়নি।";
+      return;
+    }
+
+    list.innerHTML = "";
+
+    data.forEach(function(member) {
+      const item = document.createElement("p");
+      item.textContent =
+        "নম্বর: " + member.member_no +
+        " | নাম: " + member.full_name +
+        " | মোবাইল: " + (member.phone || "নেই") +
+        " | অবস্থা: " + member.status;
+      list.appendChild(item);
+    });
+  });
   </script>
 </body>
 </html>
