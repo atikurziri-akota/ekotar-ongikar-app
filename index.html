@@ -285,6 +285,35 @@
         " | মোবাইল: " + (member.phone || "নেই") +
         " | অবস্থা: " + member.status;
       list.appendChild(item);
+
+      const editButton = document.createElement("button");
+      editButton.textContent = "Edit";
+      editButton.style.marginTop = "5px";
+
+      editButton.addEventListener("click", async function() {
+        const newName = prompt("সদস্যের নতুন নাম লিখুন:", member.full_name);
+        if (newName === null || !newName.trim()) return;
+
+        const newPhone = prompt("নতুন মোবাইল নম্বর লিখুন:", member.phone || "");
+        if (newPhone === null) return;
+
+        const { error: updateError } = await supabaseClient
+          .from("members")
+          .update({
+            full_name: newName.trim(),
+            phone: newPhone.trim() || null
+          })
+          .eq("member_no", member.member_no);
+
+        if (updateError) {
+          alert("সংশোধন হয়নি: " + updateError.message);
+        } else {
+          alert("সদস্যের তথ্য সংশোধন হয়েছে।");
+          document.getElementById("loadMembersButton").click();
+        }
+      });
+
+      list.appendChild(editButton);
     });
   });
   </script>
