@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="bn">
 <head>
@@ -7,6 +6,7 @@
   <title>একতার অঙ্গীকার</title>
   <style>
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
@@ -18,6 +18,7 @@
       justify-content: center;
       padding: 20px;
     }
+
     .card {
       width: 100%;
       max-width: 420px;
@@ -26,6 +27,7 @@
       border-radius: 20px;
       box-shadow: 0 8px 30px #172b4d18;
     }
+
     .logo {
       width: 65px;
       height: 65px;
@@ -37,32 +39,33 @@
       place-items: center;
       font-size: 30px;
     }
+
     h1 {
       text-align: center;
       font-size: 24px;
-      margin-bottom: 8px;
       color: #087f5b;
     }
+
     .sub {
       text-align: center;
       color: #718096;
-      font-size: 14px;
       margin-bottom: 28px;
     }
+
     label {
       display: block;
       font-size: 14px;
       margin: 16px 0 7px;
     }
+
     input {
       width: 100%;
       padding: 14px;
       border: 1px solid #d6deea;
       border-radius: 10px;
       font-size: 16px;
-      outline: none;
     }
-    input:focus { border-color: #087f5b; }
+
     button {
       width: 100%;
       margin-top: 24px;
@@ -73,17 +76,25 @@
       color: white;
       font-size: 17px;
       font-weight: bold;
+      cursor: pointer;
     }
+
+    #message {
+      text-align: center;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
     .note {
       text-align: center;
       color: #718096;
       font-size: 12px;
       margin-top: 22px;
-      line-height: 1.6;
     }
   </style>
 </head>
 <body>
+
   <main class="card">
     <div class="logo">🤝</div>
     <h1>একতার অঙ্গীকার</h1>
@@ -98,21 +109,67 @@
       <input id="password" type="password"
         placeholder="আপনার পাসওয়ার্ড লিখুন" required>
 
-      <button type="submit">লগইন করুন</button>
+      <button id="loginButton" type="submit">
+        লগইন করুন
+      </button>
     </form>
 
+    <p id="message" role="status"></p>
+
     <p class="note">
-      সদস্য ও অ্যাডমিনের নিরাপদ প্রবেশদ্বার<br>
+      সদস্য ও অ্যাডমিনের প্রবেশদ্বার<br>
       © একতার অঙ্গীকার
     </p>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script>
-    document.getElementById("loginForm")
-      .addEventListener("submit", function(event) {
-        event.preventDefault();
-        alert("Supabase Login পরবর্তী ধাপে সংযুক্ত করা হবে।");
-      });
+    const SUPABASE_URL = "https://xlzpwrzejqvpdndkzloj.supabase.co/rest/v1/";
+    const SUPABASE_KEY = "sb_publishable_hPFsJ4F-jfJM4H5xRNK3Kg_jLSQDzIf";
+
+    const supabaseClient = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
+    );
+
+    const form = document.getElementById("loginForm");
+    const button = document.getElementById("loginButton");
+    const message = document.getElementById("message");
+
+    form.addEventListener("submit", async function(event) {
+      event.preventDefault();
+
+      button.disabled = true;
+      button.textContent = "অপেক্ষা করুন...";
+      message.textContent = "";
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        const { data, error } =
+          await supabaseClient.auth.signInWithPassword({
+            email,
+            password
+          });
+
+        if (error) {
+          message.style.color = "#d62828";
+          message.textContent = "লগইন হয়নি: " + error.message;
+        } else {
+          message.style.color = "#087f5b";
+          message.textContent = "লগইন সফল হয়েছে!";
+        }
+      } catch (err) {
+        message.style.color = "#d62828";
+        message.textContent = "সংযোগে সমস্যা হয়েছে। আবার চেষ্টা করুন।";
+      }
+
+      button.disabled = false;
+      button.textContent = "লগইন করুন";
+    });
   </script>
+
 </body>
 </html>
