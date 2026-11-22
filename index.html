@@ -314,6 +314,32 @@
       });
 
       list.appendChild(editButton);
+      const deleteButton = document.createElement("button");
+deleteButton.textContent = "Delete";
+deleteButton.style.background = "#b42318";
+deleteButton.style.marginTop = "5px";
+
+deleteButton.addEventListener("click", async function() {
+  const confirmDelete = confirm(
+    "আপনি কি নিশ্চিত এই সদস্যকে মুছে ফেলতে চান?"
+  );
+
+  if (!confirmDelete) return;
+
+  const { error: deleteError } = await supabaseClient
+    .from("members")
+    .delete()
+    .eq("member_no", member.member_no);
+
+  if (deleteError) {
+    alert("মুছে ফেলা যায়নি: " + deleteError.message);
+  } else {
+    alert("সদস্য মুছে ফেলা হয়েছে।");
+    document.getElementById("loadMembersButton").click();
+  }
+});
+
+list.appendChild(deleteButton);
     });
   });
   </script>
