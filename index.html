@@ -1,9 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="bn">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>একতার অঙ্গীকার</title>
+
   <style>
     * { box-sizing: border-box; }
 
@@ -91,8 +93,18 @@
       font-size: 12px;
       margin-top: 22px;
     }
+
+    #adminDashboard {
+      width: 100%;
+      max-width: 600px;
+      background: white;
+      padding: 25px;
+      border-radius: 20px;
+      box-shadow: 0 8px 30px #172b4d18;
+    }
   </style>
 </head>
+
 <body>
 
   <main class="card">
@@ -121,6 +133,12 @@
       © একতার অঙ্গীকার
     </p>
   </main>
+
+  <div id="adminDashboard" style="display:none;">
+    <h2>অ্যাডমিন ড্যাশবোর্ড</h2>
+    <p>একতার অঙ্গীকার — ৫০ জনের এক পরিবার</p>
+    <div id="dashboardData">তথ্য লোড হচ্ছে...</div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -157,26 +175,28 @@
         if (error) {
           message.style.color = "#d62828";
           message.textContent = "লগইন হয়নি: " + error.message;
-        } else {
-          message.style.color = "#087f5b";
-          message.textContent = "const { data: roleData, error: roleError } =
-  await supabaseClient
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", data.user.id)
-    .single();
 
-if (!roleError && roleData?.role === "admin") {
-  document.querySelector(".card").style.display = "none";
-  document.getElementById("adminDashboard").style.display = "block";
-} else {
-  message.style.color = "#d62828";
-  message.textContent = "এই অ্যাকাউন্টের অ্যাডমিন অনুমতি নেই।";
-}";
+        } else {
+          const { data: roleData, error: roleError } =
+            await supabaseClient
+              .from("user_roles")
+              .select("role")
+              .eq("user_id", data.user.id)
+              .single();
+
+          if (!roleError && roleData?.role === "admin") {
+            document.querySelector(".card").style.display = "none";
+            document.getElementById("adminDashboard").style.display = "block";
+
+          } else {
+            message.style.color = "#d62828";
+            message.textContent = "অ্যাডমিন অনুমতি পাওয়া যায়নি।";
+          }
         }
+
       } catch (err) {
         message.style.color = "#d62828";
-        message.textContent = "সংযোগে সমস্যা হয়েছে। আবার চেষ্টা করুন।";
+        message.textContent = "সমস্যা হয়েছে: " + err.message;
       }
 
       button.disabled = false;
@@ -184,10 +204,5 @@ if (!roleError && roleData?.role === "admin") {
     });
   </script>
 
-<div id="adminDashboard" style="display:none;">
-  <h2>অ্যাডমিন ড্যাশবোর্ড</h2>
-  <p>একতার অঙ্গীকার — ৫০ জনের এক পরিবার</p>
-  <div id="dashboardData">তথ্য লোড হচ্ছে...</div>
-</div>
 </body>
 </html>
