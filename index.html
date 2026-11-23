@@ -306,14 +306,27 @@ list.appendChild(item);
         const newPhone = prompt("নতুন মোবাইল নম্বর লিখুন:", member.phone || "");
         if (newPhone === null) return;
 
-        const { error: updateError } = await supabaseClient
-          .from("members")
-          .update({
-            full_name: newName.trim(),
-            phone: newPhone.trim() || null
-          })
-          .eq("member_no", member.member_no);
+const newShare = prompt("নতুন শেয়ার সংখ্যা লিখুন:");
+const newNominee = prompt("নমিনির নাম লিখুন:");
 
+if (newShare === null || newNominee === null) return;
+
+const shareCount = Number(newShare);
+
+if (!Number.isInteger(shareCount) || shareCount < 1) {
+  alert("শেয়ার সংখ্যা কমপক্ষে ১ হতে হবে।");
+  return;
+}
+
+const { error: updateError } = await supabaseClient
+  .from("members")
+  .update({
+    full_name: newName.trim(),
+    phone: newPhone.trim() || null,
+    monthly_share: shareCount,
+    nominee_name: newNominee.trim() || null
+  })
+  .eq("member_no", member.member_no);
         if (updateError) {
           alert("সংশোধন হয়নি: " + updateError.message);
         } else {
