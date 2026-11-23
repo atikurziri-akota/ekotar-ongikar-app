@@ -287,13 +287,14 @@ try {
 
     data.forEach(function(member) {
       const item = document.createElement("p");
-      item.textContent =
-        "নম্বর: " + member.member_no +
-        " | নাম: " + member.full_name +
-        " | মোবাইল: " + (member.phone || "নেই") +
-        " | অবস্থা: " + member.status;
-      list.appendChild(item);
-
+item.textContent =
+  "নম্বর: " + member.member_no +
+  " | নাম: " + member.full_name +
+  " | মোবাইল: " + (member.phone || "নেই") +
+  " | শেয়ার: " + member.monthly_share +
+  " | নমিনি: " + (member.nominee_name || "নেই") +
+  " | অবস্থা: " + member.status;
+list.appendChild(item);
       const editButton = document.createElement("button");
       editButton.textContent = "Edit";
       editButton.style.marginTop = "5px";
