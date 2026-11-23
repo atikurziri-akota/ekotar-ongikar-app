@@ -270,7 +270,7 @@ try {
 
     const { data, error } = await supabaseClient
       .from("members")
-      .select("member_no, full_name, phone, status")
+      .select("member_no, full_name, phone, status, monthly_share, nominee_name")
       .order("member_no", { ascending: true });
 
     if (error) {
