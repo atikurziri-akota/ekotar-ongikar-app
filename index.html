@@ -434,27 +434,42 @@ fineMember.appendChild(fineOption);
 
         
 const inactiveButton = document.createElement("button");
-inactiveButton.textContent = "Inactive করুন";
+
+inactiveButton.textContent =
+  member.status === "active" ? "Inactive করুন" : "আবার Active করুন";
+
 inactiveButton.style.marginTop = "5px";
 
 inactiveButton.addEventListener("click", async function() {
-  if (!confirm("এই সদস্যকে Inactive করতে চান?")) return;
+  const newStatus =
+    member.status === "active" ? "inactive" : "active";
+
+  if (!confirm(
+    newStatus === "inactive"
+      ? "এই সদস্যকে Inactive করতে চান?"
+      : "এই সদস্যকে আবার Active করতে চান?"
+  )) return;
 
   const { error } = await supabaseClient
     .from("members")
-    .update({ status: "inactive" })
+    .update({ status: newStatus })
     .eq("id", member.id);
 
   if (error) {
-    alert("Inactive করা যায়নি: " + error.message);
+    alert("পরিবর্তন করা যায়নি: " + error.message);
   } else {
-    alert("সদস্য Inactive করা হয়েছে।");
+    alert(
+      newStatus === "active"
+        ? "সদস্য আবার Active হয়েছে।"
+        : "সদস্য Inactive হয়েছে।"
+    );
     await loadMembers();
     await loadDashboard();
   }
 });
 
 list.appendChild(inactiveButton);
+
 
 const deleteButton = document.createElement("button");
 deleteButton.textContent = "Delete";
