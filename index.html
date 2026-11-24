@@ -136,6 +136,26 @@
 <h3>সদস্য তালিকা</h3>
 <button id="loadMembersButton" type="button">সদস্য তালিকা দেখুন</button>
 <div id="memberList">এখনো তালিকা লোড হয়নি।</div>
+    <hr>
+
+<h3>মাসিক জমা গ্রহণ করুন</h3>
+
+<label for="depositMember">সদস্য নির্বাচন</label>
+<select id="depositMember" required>
+  <option value="">সদস্য নির্বাচন করুন</option>
+</select>
+
+<label for="depositMonth">জমার মাস</label>
+<input type="month" id="depositMonth" required>
+
+<label for="depositAmount">জমার পরিমাণ</label>
+<input type="number" id="depositAmount" min="1" required>
+
+<button id="depositButton" type="button">জমা সংরক্ষণ করুন</button>
+
+<p id="depositMessage" role="status"></p>
+
+<hr>
     <button id="logoutButton" type="button">লগআউট</button>
   </main>
 
