@@ -432,33 +432,58 @@ fineMember.appendChild(fineOption);
 
         list.appendChild(editButton);
 
-        const deleteButton = document.createElement("button");
-        deleteButton.textContent = "Delete";
-        deleteButton.style.background = "#b42318";
-        deleteButton.style.marginTop = "5px";
+        
+const inactiveButton = document.createElement("button");
+inactiveButton.textContent = "Inactive করুন";
+inactiveButton.style.marginTop = "5px";
 
-        deleteButton.addEventListener("click", async function() {
-          const confirmDelete = confirm(
-            "আপনি কি নিশ্চিত এই সদস্যকে মুছে ফেলতে চান? জমার রেকর্ড থাকলে মুছতে সমস্যা হতে পারে।"
-          );
+inactiveButton.addEventListener("click", async function() {
+  if (!confirm("এই সদস্যকে Inactive করতে চান?")) return;
 
-          if (!confirmDelete) return;
+  const { error } = await supabaseClient
+    .from("members")
+    .update({ status: "inactive" })
+    .eq("id", member.id);
 
-          const { error: deleteError } = await supabaseClient
-            .from("members")
-            .delete()
-            .eq("member_no", member.member_no);
+  if (error) {
+    alert("Inactive করা যায়নি: " + error.message);
+  } else {
+    alert("সদস্য Inactive করা হয়েছে।");
+    await loadMembers();
+    await loadDashboard();
+  }
+});
 
-          if (deleteError) {
-            alert("মুছে ফেলা যায়নি: " + deleteError.message);
-          } else {
-            alert("সদস্য মুছে ফেলা হয়েছে।");
-            await loadMembers();
-            await loadDashboard();
-          }
-        });
+list.appendChild(inactiveButton);
 
-        list.appendChild(deleteButton);
+const deleteButton = document.createElement("button");
+deleteButton.textContent = "Delete";
+deleteButton.style.background = "#b42318";
+deleteButton.style.marginTop = "5px";
+
+deleteButton.addEventListener("click", async function() {
+  if (member.status !== "inactive") {
+    alert("আগে সদস্যকে Inactive করুন।");
+    return;
+  }
+
+  if (!confirm("Inactive সদস্যকে স্থায়ীভাবে মুছতে চান?")) return;
+
+  const { error } = await supabaseClient
+    .from("members")
+    .delete()
+    .eq("id", member.id);
+
+  if (error) {
+    alert("মুছে ফেলা যায়নি: " + error.message);
+  } else {
+    alert("সদস্য মুছে ফেলা হয়েছে।");
+    await loadMembers();
+    await loadDashboard();
+  }
+});
+
+list.appendChild(deleteButton);
       });
     }
 
