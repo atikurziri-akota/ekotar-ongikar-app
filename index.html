@@ -360,6 +360,11 @@ const fineButton = document.getElementById("fineButton");
         option.textContent =
           member.full_name + " (" + member.monthly_share + " শেয়ার)";
         depositMember.appendChild(option);
+        const fineOption = document.createElement("option");
+fineOption.value = member.id;
+fineOption.textContent =
+  member.full_name + " (" + member.monthly_share + " শেয়ার)";
+fineMember.appendChild(fineOption);
       });
 
       updateDepositAmount();
