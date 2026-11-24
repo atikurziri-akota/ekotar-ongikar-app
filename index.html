@@ -160,7 +160,25 @@
     <input type="number" id="depositAmount" readonly>
 
     <p id="depositCalculation"></p>
+<hr>
+<h3>জরিমানা গ্রহণ করুন</h3>
 
+<label for="fineMember">সদস্য নির্বাচন</label>
+<select id="fineMember" required>
+  <option value="">সদস্য নির্বাচন করুন</option>
+</select>
+
+<label for="fineAmount">জরিমানার পরিমাণ (টাকা)</label>
+<input type="number" id="fineAmount" value="50" min="1" required>
+
+<label for="fineReason">জরিমানার কারণ</label>
+<input type="text" id="fineReason" placeholder="যেমন: ১৫ তারিখের পরে জমা">
+
+<label for="fineDate">জরিমানার তারিখ</label>
+<input type="date" id="fineDate" required>
+
+<button id="fineButton" type="button">জরিমানা সংরক্ষণ করুন</button>
+<p id="fineMessage"></p>
     <button id="depositButton" type="button">জমা সংরক্ষণ করুন</button>
     <p id="depositMessage" role="status"></p>
 
