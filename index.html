@@ -121,7 +121,8 @@ async function loadMembers(){
  let d=document.createElement("div");
  d.className="item";
  let p=document.createElement("p");
- p.textContent=`ইউনিক আইডি: ${m.member_code||"নেই"} | সদস্য নং: ${m.member_no} | ${m.full_name} | মোবাইল: ${m.phone||"নেই"} | শেয়ার: ${m.monthly_share} | নমিনি: ${m.nominee_name||"নেই"} | ${m.status==="active"?"Active":"Inactive"}`;
+
+p.textContent=`আইডি: ${m.member_code||"নেই"} | ${m.full_name} | মোবাইল: ${m.phone||"নেই"} | শেয়ার: ${m.monthly_share} | নমিনি: ${m.nominee_name||"নেই"} | ${m.status==="active"?"Active":"Inactive"}`;
  d.append(p);
 
  actionButton(d,"সম্পাদনা","",async()=>{
