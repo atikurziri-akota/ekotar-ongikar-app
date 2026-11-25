@@ -103,15 +103,73 @@ async function adminCheck(user){const {data,error}=await db.from("user_roles").s
 $("loginBtn").onclick=async()=>{msg("loginMsg","");$("loginBtn").disabled=true;try{let {data,error}=await db.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});if(error)throw error;await adminCheck(data.user);currentUser=data.user;$("loginCard").classList.add("hidden");$("app").classList.remove("hidden");await refreshAll()}catch(e){msg("loginMsg","লগইন হয়নি: "+e.message)}$("loginBtn").disabled=false};
 async function refreshAll(){await Promise.all([loadMembers(),loadStats()])}
 async function loadStats(){let [m,d,f,x]=await Promise.all([db.from("members").select("id",{count:"exact",head:true}),db.from("deposits").select("amount"),db.from("fines").select("amount"),db.from("expenses").select("amount")]);let err=m.error||d.error||f.error||x.error;if(err){console.error(err);return}$("statMembers").textContent=m.count||0;$("statDeposits").textContent=money(d.data.reduce((s,r)=>s+Number(r.amount),0));$("statFines").textContent=money(f.data.reduce((s,r)=>s+Number(r.amount),0));$("statExpenses").textContent=money(x.data.reduce((s,r)=>s+Number(r.amount),0))}
+
 async function loadMembers(){
- let {data,error}=await db.from("members").select("id,member_no,full_name,phone,status,monthly_share,nominee_name,join_date,identity_number,nominee_identity,address").order("member_no");
- if(error){msg("memberMsg",error.message);return}members=data||[];let active=members.filter(m=>m.status==="active");
- ["depMember","fineMember","refundMember"].forEach(id=>addOpt(id,active));addOpt("historyMember",members);$("members").innerHTML="";
- members.forEach(m=>{let d=document.createElement("div");d.className="item";let p=document.createElement("p");p.textContent=`নং ${m.member_no} | ${m.full_name} | মোবাইল: ${m.phone||"নেই"} | শেয়ার: ${m.monthly_share} | নমিনি: ${m.nominee_name||"নেই"} | ${m.status==="active"?"Active":"Inactive"}`;d.append(p);
- actionButton(d,"সম্পাদনা","",async()=>{let no=prompt("সদস্য নম্বর",m.member_no);if(no===null)return;let name=prompt("সদস্যের নাম",m.full_name);if(name===null)return;let phone=prompt("মোবাইল",m.phone||"");if(phone===null)return;let identity=prompt("সদস্যের NID / পাসপোর্ট",m.identity_number||"");if(identity===null)return;let share=Number(prompt("শেয়ার সংখ্যা",m.monthly_share));if(!Number.isInteger(share)||share<1)return alert("সঠিক শেয়ার লিখুন");let nominee=prompt("নমিনির নাম",m.nominee_name||"");if(nominee===null)return;let nomineeIdentity=prompt("নমিনির NID",m.nominee_identity||"");if(nomineeIdentity===null)return;let address=prompt("বর্তমান ঠিকানা",m.address||"");if(address===null)return;let join=prompt("যোগদানের তারিখ (YYYY-MM-DD)",m.join_date||"2025-09-01");if(join===null)return;let {error}=await db.from("members").update({member_no:Number(no),full_name:name.trim(),phone:phone.trim()||null,identity_number:identity.trim()||null,monthly_share:share,nominee_name:nominee.trim()||null,nominee_identity:nomineeIdentity.trim()||null,address:address.trim()||null,join_date:join||null}).eq("id",m.id);if(error)alert("পরিবর্তন হয়নি: "+error.message);else{alert("সদস্যের তথ্য পরিবর্তন হয়েছে");await refreshAll()}});
- actionButton(d,m.status==="active"?"Inactive করুন":"আবার Active করুন","secondary",async()=>{let next=m.status==="active"?"inactive":"active";if(!confirm("সদস্যের অবস্থা পরিবর্তন করবেন?"))return;let {error}=await db.from("members").update({status:next}).eq("id",m.id);if(error)alert(error.message);else await refreshAll()});
- actionButton(d,"সদস্য ডিলিট","danger",async()=>{if(!confirm("সদস্যের তথ্য ডিলিট করবেন? আর্থিক লেনদেন থাকলে ডিলিট আটকে যেতে পারে।"))return;let {error}=await db.from("members").delete().eq("id",m.id);if(error)alert("ডিলিট হয়নি। সদস্যের সঙ্গে জমা/জরিমানা/ফেরতের রেকর্ড যুক্ত থাকলে আগে সেগুলো যাচাই করতে হবে।\n"+error.message);else{alert("সদস্য ডিলিট হয়েছে");await refreshAll()}});
- $("members").append(d)});updateAmount()
+ let {data,error}=await db.from("members")
+ .select("id,member_no,member_code,full_name,phone,status,monthly_share,nominee_name,join_date,identity_number,nominee_identity,address")
+ .order("member_no");
+
+ if(error){msg("memberMsg",error.message);return}
+ members=data||[];
+ let active=members.filter(m=>m.status==="active");
+
+ ["depMember","fineMember","refundMember"].forEach(id=>addOpt(id,active));
+ addOpt("historyMember",members);
+ $("members").innerHTML="";
+
+ members.forEach(m=>{
+ let d=document.createElement("div");
+ d.className="item";
+ let p=document.createElement("p");
+ p.textContent=`ইউনিক আইডি: ${m.member_code||"নেই"} | সদস্য নং: ${m.member_no} | ${m.full_name} | মোবাইল: ${m.phone||"নেই"} | শেয়ার: ${m.monthly_share} | নমিনি: ${m.nominee_name||"নেই"} | ${m.status==="active"?"Active":"Inactive"}`;
+ d.append(p);
+
+ actionButton(d,"সম্পাদনা","",async()=>{
+ let no=prompt("সদস্য নম্বর",m.member_no);if(no===null)return;
+ let name=prompt("সদস্যের নাম",m.full_name);if(name===null)return;
+ let phone=prompt("মোবাইল",m.phone||"");if(phone===null)return;
+ let identity=prompt("সদস্যের NID / পাসপোর্ট",m.identity_number||"");if(identity===null)return;
+ let share=Number(prompt("শেয়ার সংখ্যা",m.monthly_share));
+ if(!Number.isInteger(share)||share<1)return alert("সঠিক শেয়ার লিখুন");
+ let nominee=prompt("নমিনির নাম",m.nominee_name||"");if(nominee===null)return;
+ let nomineeIdentity=prompt("নমিনির NID",m.nominee_identity||"");if(nomineeIdentity===null)return;
+ let address=prompt("বর্তমান ঠিকানা",m.address||"");if(address===null)return;
+ let join=prompt("যোগদানের তারিখ (YYYY-MM-DD)",m.join_date||"2025-09-01");if(join===null)return;
+
+ let {error}=await db.from("members").update({
+ member_no:Number(no),
+ full_name:name.trim(),
+ phone:phone.trim()||null,
+ identity_number:identity.trim()||null,
+ monthly_share:share,
+ nominee_name:nominee.trim()||null,
+ nominee_identity:nomineeIdentity.trim()||null,
+ address:address.trim()||null,
+ join_date:join||null
+ }).eq("id",m.id);
+
+ if(error)alert("পরিবর্তন হয়নি: "+error.message);
+ else{alert("সদস্যের তথ্য পরিবর্তন হয়েছে");await refreshAll()}
+ });
+
+ actionButton(d,m.status==="active"?"Inactive করুন":"আবার Active করুন","secondary",async()=>{
+ let next=m.status==="active"?"inactive":"active";
+ if(!confirm("সদস্যের অবস্থা পরিবর্তন করবেন?"))return;
+ let {error}=await db.from("members").update({status:next}).eq("id",m.id);
+ if(error)alert(error.message);
+ else await refreshAll()
+ });
+
+ actionButton(d,"সদস্য ডিলিট","danger",async()=>{
+ if(!confirm("সদস্যের তথ্য ডিলিট করবেন? আর্থিক লেনদেন থাকলে ডিলিট আটকে যেতে পারে।"))return;
+ let {error}=await db.from("members").delete().eq("id",m.id);
+ if(error)alert("ডিলিট হয়নি। সদস্যের সঙ্গে জমা/জরিমানা/ফেরতের রেকর্ড যুক্ত থাকলে আগে সেগুলো যাচাই করতে হবে।\n"+error.message);
+ else{alert("সদস্য ডিলিট হয়েছে");await refreshAll()}
+ });
+
+ $("members").append(d)
+ });
+ updateAmount()
 }
 $("reloadMembers").onclick=refreshAll;
 $("addMember").onclick=async()=>{let row={member_no:Number($("mNo").value),full_name:$("mName").value.trim(),phone:$("mPhone").value.trim()||null,identity_number:$("mIdentity").value.trim()||null,monthly_share:Number($("mShare").value),nominee_name:$("mNominee").value.trim()||null,nominee_identity:$("mNomineeIdentity").value.trim()||null,address:$("mAddress").value.trim()||null,join_date:$("mJoin").value||"2025-09-01"};if(!row.member_no||!row.full_name||!Number.isInteger(row.monthly_share)||row.monthly_share<1)return msg("memberMsg","সদস্য নম্বর, নাম ও সঠিক শেয়ার সংখ্যা পূরণ করুন");let {error}=await db.from("members").insert(row);if(error)msg("memberMsg",error.message);else{msg("memberMsg","সদস্য যোগ হয়েছে",true);["mNo","mName","mPhone","mIdentity","mNominee","mNomineeIdentity","mAddress"].forEach(id=>$(id).value="");$("mShare").value=1;await refreshAll()}};
