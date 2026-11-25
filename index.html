@@ -1,100 +1,857 @@
-// Flutter-based Android app for Samiti Accounting
-// main.dart
 
-import 'package:flutter/material.dart';
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>একতার অঙ্গীকার</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f3f6fb;
+      color: #172b4d;
+      min-height: 100vh;
+    }
+    .card, #adminDashboard {
+      width: 100%;
+      max-width: 600px;
+      margin: 30px auto;
+      padding: 25px;
+      background: white;
+      border-radius: 18px;
+      box-shadow: 0 8px 30px #172b4d18;
+    }
+    .login-card { max-width: 420px; }
+    .logo {
+      width: 65px;
+      height: 65px;
+      margin: auto;
+      border-radius: 18px;
+      background: #087f5b;
+      color: white;
+      display: grid;
+      place-items: center;
+      font-size: 30px;
+    }
+    h1, .sub { text-align: center; }
+    h1 { color: #087f5b; font-size: 24px; }
+    .sub { color: #718096; margin-bottom: 25px; }
+    label {
+      display: block;
+      margin: 16px 0 7px;
+      font-size: 14px;
+    }
+    input, select {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #d6deea;
+      border-radius: 10px;
+      font-size: 16px;
+      background: white;
+    }
+    button {
+      width: 100%;
+      margin-top: 18px;
+      padding: 14px;
+      border: 0;
+      border-radius: 10px;
+      background: #087f5b;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .6; }
+    #message, #memberMessage, #depositMessage {
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+    .stat {
+      padding: 12px;
+      margin: 10px 0;
+      background: #f3f6fb;
+      border-radius: 10px;
+    }
+    hr { margin: 25px 0; border: 0; border-top: 1px solid #ddd; }
+    #logoutButton { background: #b42318; }
+  </style>
+</head>
+<body>
 
-void main() {
-  runApp(const SamitiApp());
-}
+  <main class="card login-card">
+    <div class="logo">🤝</div>
+    <h1>একতার অঙ্গীকার</h1>
+    <p class="sub">৫০ জনের এক পরিবার</p>
 
-class SamitiApp extends StatelessWidget {
-  const SamitiApp({super.key});
+    <form id="loginForm">
+      <label for="email">ইমেইল ঠিকানা</label>
+      <input id="email" type="email" required placeholder="আপনার ইমেইল লিখুন">
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'সমিতি হিসাব',
-      theme: ThemeData(primarySwatch: Colors.green),
-      home: const HomePage(),
+      <label for="password">পাসওয়ার্ড</label>
+      <input id="password" type="password" required placeholder="আপনার পাসওয়ার্ড লিখুন">
+
+      <button id="loginButton" type="submit">লগইন করুন</button>
+    </form>
+    <p id="message" role="status"></p>
+    <p class="sub">সদস্য ও অ্যাডমিনের প্রবেশদ্বার</p>
+  </main>
+
+  <main id="adminDashboard" style="display:none;">
+    <h2>অ্যাডমিন ড্যাশবোর্ড</h2>
+    <p>একতার অঙ্গীকার — ৫০ জনের এক পরিবার</p>
+
+    <div id="dashboardData">
+      <div class="stat">মোট সদস্য: <span id="totalMembers">লোড হচ্ছে...</span></div>
+      <div class="stat">মোট জমা: ৳<span id="totalDeposits">লোড হচ্ছে...</span></div>
+      <div class="stat">মোট জরিমানা: ৳<span id="totalFines">লোড হচ্ছে...</span></div>
+      <div class="stat">মোট খরচ: ৳<span id="totalExpenses">লোড হচ্ছে...</span></div>
+    </div>
+
+    <hr>
+    <h3>নতুন সদস্য যোগ করুন</h3>
+
+    <form id="memberForm">
+      <label for="memberNo">সদস্য নম্বর</label>
+      <input type="number" id="memberNo" min="1" required>
+
+      <label for="memberName">সদস্যের নাম</label>
+      <input type="text" id="memberName" required>
+
+      <label for="memberPhone">মোবাইল নম্বর</label>
+      <input type="tel" id="memberPhone">
+
+      <label for="memberShare">শেয়ার সংখ্যা</label>
+      <input type="number" id="memberShare" min="1" value="1" required>
+
+      <label for="memberNominee">নমিনির নাম</label>
+      <input type="text" id="memberNominee" placeholder="নমিনির পূর্ণ নাম">
+
+      <button id="memberButton" type="submit">সদস্য যোগ করুন</button>
+    </form>
+
+    <p id="memberMessage" role="status"></p>
+
+    <hr>
+    <h3>সদস্য তালিকা</h3>
+    <button id="loadMembersButton" type="button">সদস্য তালিকা দেখুন</button>
+    <div id="memberList">এখনো তালিকা লোড হয়নি।</div>
+
+    <hr>
+    <h3>মাসিক জমা গ্রহণ করুন</h3>
+
+    <label for="depositMember">সদস্য নির্বাচন</label>
+    <select id="depositMember" required>
+      <option value="">সদস্য নির্বাচন করুন</option>
+    </select>
+
+    <label for="depositMonth">জমার মাস</label>
+    <input type="month" id="depositMonth" required>
+
+    <label for="depositType">জমার ধরন</label>
+    <select id="depositType" required>
+      <option value="monthly">মাসিক মূল জমা</option>
+      <option value="annual">ডিসেম্বরের অতিরিক্ত জমা</option>
+    </select>
+
+    <label for="depositAmount">জমার পরিমাণ (টাকা)</label>
+    <input type="number" id="depositAmount" readonly>
+
+    <p id="depositCalculation"></p>
+<hr>
+<h3>জরিমানা গ্রহণ করুন</h3>
+
+<label for="fineMember">সদস্য নির্বাচন</label>
+<select id="fineMember" required>
+  <option value="">সদস্য নির্বাচন করুন</option>
+</select>
+
+<label for="fineAmount">জরিমানার পরিমাণ (টাকা)</label>
+<input type="number" id="fineAmount" value="50" min="1" required>
+
+<label for="fineReason">জরিমানার কারণ</label>
+<input type="text" id="fineReason" placeholder="যেমন: ১৫ তারিখের পরে জমা">
+
+<label for="fineDate">জরিমানার তারিখ</label>
+<input type="date" id="fineDate" required>
+
+<button id="fineButton" type="button">জরিমানা সংরক্ষণ করুন</button>
+<p id="fineMessage"></p>
+    <button id="depositButton" type="button">জমা সংরক্ষণ করুন</button>
+    <p id="depositMessage" role="status"></p>
+<hr>
+<h3>জমার হিসাব ও সংশোধন</h3>
+
+<label for="historyMember">সদস্য নির্বাচন</label>
+<select id="historyMember">
+  <option value="">সদস্য নির্বাচন করুন</option>
+</select>
+
+<button id="historyButton" type="button">
+  জমার হিসাব দেখুন
+</button>
+
+<div id="depositHistory"></div>
+    <hr>
+    <button id="logoutButton" type="button">লগআউট</button>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    
+    const SUPABASE_URL = "https://xlzpwrzejqvpdndkzloj.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_hPFsJ4F-jfJM4H5xRNK3Kg_jLSQDzIf";
+
+    const supabaseClient = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
     );
-  }
-}
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+    const loginForm = document.getElementById("loginForm");
+    const loginButton = document.getElementById("loginButton");
+    const message = document.getElementById("message");
+    const memberForm = document.getElementById("memberForm");
+    const memberButton = document.getElementById("memberButton");
+    const memberMessage = document.getElementById("memberMessage");
 
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
+    const depositMember = document.getElementById("depositMember");
+    const depositMonth = document.getElementById("depositMonth");
+    const depositType = document.getElementById("depositType");
+    const depositAmount = document.getElementById("depositAmount");
+    const depositCalculation = document.getElementById("depositCalculation");
+    const depositMessage = document.getElementById("depositMessage");
+    const depositButton = document.getElementById("depositButton");
+const fineMember = document.getElementById("fineMember");
+const fineAmount = document.getElementById("fineAmount");
+const fineReason = document.getElementById("fineReason");
+const fineDate = document.getElementById("fineDate");
+const fineMessage = document.getElementById("fineMessage");
+const fineButton = document.getElementById("fineButton");
+    const historyMember = document.getElementById("historyMember");
+const historyButton = document.getElementById("historyButton");
+const depositHistory = document.getElementById("depositHistory");
+    let activeMembers = [];
 
-class _HomePageState extends State<HomePage> {
-  final List<Map<String, dynamic>> members = [];
+    async function loadDashboard() {
+      const { data: stats, error } = await supabaseClient
+        .from("admin_dashboard")
+        .select("*")
+        .single();
 
-  final nameCtrl = TextEditingController();
-  final phoneCtrl = TextEditingController();
-  final depositCtrl = TextEditingController();
-  final fineCtrl = TextEditingController();
-  final chargeCtrl = TextEditingController();
-  final interestCtrl = TextEditingController();
+      if (error) {
+        document.getElementById("dashboardData").textContent =
+          "তথ্য লোড হয়নি: " + error.message;
+        return;
+      }
 
-  void addMember() {
-    final deposit = double.tryParse(depositCtrl.text) ?? 0;
-    final fine = double.tryParse(fineCtrl.text) ?? 0;
-    final charge = double.tryParse(chargeCtrl.text) ?? 0;
-    final interest = double.tryParse(interestCtrl.text) ?? 0;
+      document.getElementById("totalMembers").textContent =
+        stats.total_members ?? 0;
+      document.getElementById("totalDeposits").textContent =
+        stats.total_deposits ?? 0;
+      document.getElementById("totalFines").textContent =
+        stats.total_fines ?? 0;
+      document.getElementById("totalExpenses").textContent =
+        stats.total_expenses ?? 0;
+    }
 
-    final total = deposit + fine + interest - charge;
+    loginForm.addEventListener("submit", async function(event) {
+      event.preventDefault();
+      loginButton.disabled = true;
+      loginButton.textContent = "অপেক্ষা করুন...";
+      message.textContent = "";
 
-    setState(() {
-      members.add({
-        'name': nameCtrl.text,
-        'phone': phoneCtrl.text,
-        'total': total,
-      });
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        const { data, error } = await supabaseClient.auth
+          .signInWithPassword({ email, password });
+
+        if (error) throw error;
+
+        const { data: roleData, error: roleError } = await supabaseClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id)
+          .single();
+
+        if (roleError || roleData?.role !== "admin") {
+          await supabaseClient.auth.signOut();
+          throw new Error("অ্যাডমিন অনুমতি পাওয়া যায়নি।");
+        }
+
+        document.querySelector(".login-card").style.display = "none";
+        document.getElementById("adminDashboard").style.display = "block";
+
+        await loadDashboard();
+        await loadMembers();
+
+      } catch (err) {
+        message.style.color = "#d62828";
+        message.textContent = "লগইন হয়নি: " + err.message;
+      }
+
+      loginButton.disabled = false;
+      loginButton.textContent = "লগইন করুন";
     });
 
-    nameCtrl.clear();
-    phoneCtrl.clear();
-    depositCtrl.clear();
-    fineCtrl.clear();
-    chargeCtrl.clear();
-    interestCtrl.clear();
+    memberForm.addEventListener("submit", async function(event) {
+      event.preventDefault();
+
+      memberButton.disabled = true;
+      memberButton.textContent = "যোগ হচ্ছে...";
+      memberMessage.textContent = "";
+
+      const memberNo = Number(document.getElementById("memberNo").value);
+      const memberName = document.getElementById("memberName").value.trim();
+      const memberPhone = document.getElementById("memberPhone").value.trim();
+      const memberShare = Number(document.getElementById("memberShare").value);
+      const memberNominee = document.getElementById("memberNominee").value.trim();
+
+      try {
+        if (!Number.isInteger(memberShare) || memberShare < 1) {
+          throw new Error("শেয়ার সংখ্যা কমপক্ষে ১ হতে হবে।");
+        }
+
+        const { error } = await supabaseClient
+          .from("members")
+          .insert([{
+            member_no: memberNo,
+            full_name: memberName,
+            phone: memberPhone || null,
+            monthly_share: memberShare,
+            nominee_name: memberNominee || null
+          }]);
+
+        if (error) throw error;
+
+        memberMessage.style.color = "#087f5b";
+        memberMessage.textContent = "সদস্য সফলভাবে যোগ হয়েছে।";
+        memberForm.reset();
+
+        await loadDashboard();
+        await loadMembers();
+
+      } catch (err) {
+        memberMessage.style.color = "#d62828";
+        memberMessage.textContent = "সদস্য যোগ হয়নি: " + err.message;
+      }
+
+      memberButton.disabled = false;
+      memberButton.textContent = "সদস্য যোগ করুন";
+    });
+
+    async function loadMembers() {
+      const list = document.getElementById("memberList");
+      list.textContent = "সদস্য তালিকা লোড হচ্ছে...";
+
+      const { data, error } = await supabaseClient
+        .from("members")
+        .select("id, member_no, full_name, phone, status, monthly_share, nominee_name")
+        .order("member_no", { ascending: true });
+
+      if (error) {
+        list.textContent = "তালিকা লোড হয়নি: " + error.message;
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        list.textContent = "কোনো সদস্য পাওয়া যায়নি।";
+        return;
+      }
+
+      activeMembers = data.filter(function(member) {
+        return member.status === "active";
+      });
+
+      depositMember.innerHTML =
+        '<option value="">সদস্য নির্বাচন করুন</option>';
+
+      activeMembers.forEach(function(member) {
+        const option = document.createElement("option");
+        option.value = member.id;
+        option.textContent =
+          member.full_name + " (" + member.monthly_share + " শেয়ার)";
+        depositMember.appendChild(option);
+        const fineOption = document.createElement("option");
+fineOption.value = member.id;
+fineOption.textContent =
+  member.full_name + " (" + member.monthly_share + " শেয়ার)";
+fineMember.appendChild(fineOption);
+      });
+
+      updateDepositAmount();
+      list.innerHTML = "";
+historyMember.innerHTML =
+  '<option value="">সদস্য নির্বাচন করুন</option>';
+      data.forEach(function(member) {
+        const historyOption = document.createElement("option");
+historyOption.value = member.id;
+historyOption.textContent =
+  member.full_name + " (" + member.status + ")";
+historyMember.appendChild(historyOption);
+        const item = document.createElement("p");
+        item.textContent =
+          "নম্বর: " + member.member_no +
+          " | নাম: " + member.full_name +
+          " | মোবাইল: " + (member.phone || "নেই") +
+          " | শেয়ার: " + member.monthly_share +
+          " | নমিনি: " + (member.nominee_name || "নেই") +
+          " | অবস্থা: " + member.status;
+
+        list.appendChild(item);
+
+        const editButton = document.createElement("button");
+        editButton.textContent = "Edit";
+        editButton.style.marginTop = "5px";
+
+        editButton.addEventListener("click", async function() {
+          const newName = prompt("সদস্যের নতুন নাম লিখুন:", member.full_name);
+          if (newName === null || !newName.trim()) return;
+
+          const newPhone = prompt("নতুন মোবাইল নম্বর লিখুন:", member.phone || "");
+          if (newPhone === null) return;
+
+          const newShare = prompt(
+            "নতুন শেয়ার সংখ্যা লিখুন:",
+            member.monthly_share
+          );
+          if (newShare === null) return;
+
+          const newNominee = prompt(
+            "নমিনির নাম লিখুন:",
+            member.nominee_name || ""
+          );
+          if (newNominee === null) return;
+
+          const shareCount = Number(newShare);
+
+          if (!Number.isInteger(shareCount) || shareCount < 1) {
+            alert("শেয়ার সংখ্যা কমপক্ষে ১ হতে হবে।");
+            return;
+          }
+
+          const { error: updateError } = await supabaseClient
+            .from("members")
+            .update({
+              full_name: newName.trim(),
+              phone: newPhone.trim() || null,
+              monthly_share: shareCount,
+              nominee_name: newNominee.trim() || null
+            })
+            .eq("member_no", member.member_no);
+
+          if (updateError) {
+            alert("সংশোধন হয়নি: " + updateError.message);
+          } else {
+            alert("সদস্যের তথ্য সংশোধন হয়েছে।");
+            await loadMembers();
+          }
+        });
+
+        list.appendChild(editButton);
+
+        
+const inactiveButton = document.createElement("button");
+
+inactiveButton.textContent =
+  member.status === "active" ? "Inactive করুন" : "আবার Active করুন";
+
+inactiveButton.style.marginTop = "5px";
+
+inactiveButton.addEventListener("click", async function() {
+  const newStatus =
+    member.status === "active" ? "inactive" : "active";
+
+  if (!confirm(
+    newStatus === "inactive"
+      ? "এই সদস্যকে Inactive করতে চান?"
+      : "এই সদস্যকে আবার Active করতে চান?"
+  )) return;
+
+  const { error } = await supabaseClient
+    .from("members")
+    .update({ status: newStatus })
+    .eq("id", member.id);
+
+  if (error) {
+    alert("পরিবর্তন করা যায়নি: " + error.message);
+  } else {
+    alert(
+      newStatus === "active"
+        ? "সদস্য আবার Active হয়েছে।"
+        : "সদস্য Inactive হয়েছে।"
+    );
+    await loadMembers();
+    await loadDashboard();
+  }
+});
+
+list.appendChild(inactiveButton);
+
+
+const deleteButton = document.createElement("button");
+deleteButton.textContent = "Delete";
+deleteButton.style.background = "#b42318";
+deleteButton.style.marginTop = "5px";
+
+deleteButton.addEventListener("click", async function() {
+  if (member.status !== "inactive") {
+    alert("আগে সদস্যকে Inactive করুন।");
+    return;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('সমিতি হিসাব অ্যাপ')),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'নাম')),
-            TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'ফোন')),
-            TextField(controller: depositCtrl, decoration: const InputDecoration(labelText: 'জমা টাকা')),
-            TextField(controller: fineCtrl, decoration: const InputDecoration(labelText: 'জরিমানা')),
-            TextField(controller: chargeCtrl, decoration: const InputDecoration(labelText: 'ব্যাংক চার্জ')),
-            TextField(controller: interestCtrl, decoration: const InputDecoration(labelText: 'ইন্টারেস্ট')),
-            const SizedBox(height: 10),
-            ElevatedButton(onPressed: addMember, child: const Text('সেভ করুন')),
-            const Divider(),
-            Expanded(
-              child: ListView.builder(
-                itemCount: members.length,
-                itemBuilder: (context, index) {
-                  final m = members[index];
-                  return ListTile(
-                    title: Text(m['name']),
-                    subtitle: Text('ফোন: ${m['phone']}'),
-                    trailing: Text('মোট: ${m['total']}'),
-                  );
-                },
-              ),
-            )
-          ],
-        ),
-      ),
-    );
+  if (!confirm("Inactive সদস্যকে স্থায়ীভাবে মুছতে চান?")) return;
+
+  const { error } = await supabaseClient
+    .from("members")
+    .delete()
+    .eq("id", member.id);
+
+  if (error) {
+    alert("মুছে ফেলা যায়নি: " + error.message);
+  } else {
+    alert("সদস্য মুছে ফেলা হয়েছে।");
+    await loadMembers();
+    await loadDashboard();
   }
-}
+});
+
+list.appendChild(deleteButton);
+      });
+    }
+
+    document.getElementById("loadMembersButton")
+      .addEventListener("click", loadMembers);
+
+    function updateDepositAmount() {
+      const member = activeMembers.find(function(item) {
+        return item.id === depositMember.value;
+      });
+
+      const month = depositMonth.value;
+      const type = depositType.value;
+
+      depositAmount.value = "";
+      depositCalculation.textContent = "";
+
+      if (!member || !month) return;
+
+      if (type === "annual" && month.slice(5, 7) !== "12") {
+        depositCalculation.textContent =
+          "ডিসেম্বরের অতিরিক্ত জমা শুধু ডিসেম্বর মাসে নেওয়া যাবে।";
+        return;
+      }
+
+      const perShare = type === "monthly" ? 2000 : 6000;
+      const total = member.monthly_share * perShare;
+
+      depositAmount.value = total;
+      depositCalculation.textContent =
+        member.monthly_share + " শেয়ার × ৳" + perShare +
+        " = ৳" + total;
+    }
+
+    depositMember.addEventListener("change", updateDepositAmount);
+    depositMonth.addEventListener("change", updateDepositAmount);
+    depositType.addEventListener("change", updateDepositAmount);
+
+    depositButton.addEventListener("click", async function() {
+      depositMessage.textContent = "";
+
+      const memberId = depositMember.value;
+      const month = depositMonth.value;
+      const type = depositType.value;
+      const amount = Number(depositAmount.value);
+
+      if (!memberId || !month || !amount) {
+        depositMessage.style.color = "#b42318";
+        depositMessage.textContent =
+          "সদস্য, জমার মাস ও জমার ধরন নির্বাচন করুন।";
+        return;
+      }
+
+      if (type === "annual" && month.slice(5, 7) !== "12") {
+        depositMessage.style.color = "#b42318";
+        depositMessage.textContent =
+          "বার্ষিক অতিরিক্ত জমা শুধু ডিসেম্বর মাসে নেওয়া যাবে।";
+        return;
+      }
+
+      const depositMonthValue = month + "-01";
+      const note = type === "monthly" ? "মাসিক মূল জমা" : "ডিসেম্বরের অতিরিক্ত জমা";
+
+      depositButton.disabled = true;
+      depositButton.textContent = "সংরক্ষণ হচ্ছে...";
+
+      try {
+        const { data: existing, error: checkError } = await supabaseClient
+          .from("deposits")
+          .select("id")
+          .eq("member_id", memberId)
+          .eq("deposit_month", depositMonthValue)
+          .eq("note", note)
+          .maybeSingle();
+
+        if (checkError) throw checkError;
+
+        if (existing) {
+          throw new Error("এই সদস্যের এই মাসের এই ধরনের জমা আগে নেওয়া হয়েছে।");
+        }
+
+        const { error } = await supabaseClient
+          .from("deposits")
+          .insert([{
+            member_id: memberId,
+            amount: amount,
+            deposit_month: depositMonthValue,
+            note: note
+          }]);
+
+        if (error) throw error;
+
+        depositMessage.style.color = "#087f5b";
+        depositMessage.textContent =
+          "জমা সফলভাবে সংরক্ষণ হয়েছে: ৳" + amount;
+
+        await loadDashboard();
+
+      } catch (err) {
+        depositMessage.style.color = "#b42318";
+        depositMessage.textContent = "জমা সংরক্ষণ হয়নি: " + err.message;
+      }
+
+      depositButton.disabled = false;
+      depositButton.textContent = "জমা সংরক্ষণ করুন";
+    });
+
+fineButton.addEventListener("click", async function() {
+  fineMessage.textContent = "";
+
+  const memberId = fineMember.value;
+  const amount = Number(fineAmount.value);
+  const reason = fineReason.value.trim();
+  const date = fineDate.value;
+
+  if (!memberId || !amount || !date) {
+    fineMessage.style.color = "#b42318";
+    fineMessage.textContent =
+      "সদস্য, জরিমানার পরিমাণ ও তারিখ পূরণ করুন।";
+    return;
+  }
+
+  fineButton.disabled = true;
+  fineButton.textContent = "সংরক্ষণ হচ্ছে...";
+
+  try {
+    const { error } = await supabaseClient
+      .from("fines")
+      .insert([{
+        member_id: memberId,
+        amount: amount,
+        reason: reason || null,
+        fine_date: date,
+        paid: false
+      }]);
+
+    if (error) throw error;
+
+    fineMessage.style.color = "#087f5b";
+    fineMessage.textContent =
+      "জরিমানা সফলভাবে সংরক্ষণ হয়েছে: ৳" + amount;
+
+    await loadDashboard();
+
+  } catch (err) {
+    fineMessage.style.color = "#b42318";
+    fineMessage.textContent =
+      "জরিমানা সংরক্ষণ হয়নি: " + err.message;
+  }
+
+  fineButton.disabled = false;
+  fineButton.textContent = "জরিমানা সংরক্ষণ করুন";
+});
+historyButton.addEventListener("click", async function() {
+  depositHistory.innerHTML = "";
+
+  const memberId = historyMember.value;
+
+  if (!memberId) {
+    depositHistory.textContent = "আগে একজন সদস্য নির্বাচন করুন।";
+    return;
+  }
+
+  depositHistory.textContent = "হিসাব লোড হচ্ছে...";
+
+  const { data, error } = await supabaseClient
+    .from("deposits")
+    .select("id, amount, deposit_month, deposit_date, note, member_id")
+    .eq("member_id", memberId)
+    .order("deposit_month", { ascending: false });
+
+  if (error) {
+    depositHistory.textContent =
+      "হিসাব লোড হয়নি: " + error.message;
+    return;
+  }
+
+  depositHistory.innerHTML = "";
+
+  if (!data || data.length === 0) {
+    depositHistory.textContent = "এই সদস্যের কোনো জমা পাওয়া যায়নি।";
+    return;
+  }
+
+  
+data.forEach(function(deposit) {
+  const item = document.createElement("div");
+
+  item.style.borderBottom = "1px solid #ddd";
+  item.style.padding = "12px 0";
+
+  const details = document.createElement("p");
+  details.textContent =
+    "মাস: " + deposit.deposit_month +
+    " | টাকা: ৳" + deposit.amount +
+    " | জমার তারিখ: " + deposit.deposit_date +
+    " | ধরন: " + (deposit.note || "নেই");
+
+  item.appendChild(details);
+
+  const editButton = document.createElement("button");
+  editButton.textContent = "সংশোধন করুন";
+
+  editButton.addEventListener("click", async function() {
+    const newAmountText = prompt(
+      "নতুন জমার পরিমাণ লিখুন:",
+      deposit.amount
+    );
+    if (newAmountText === null) return;
+
+    const newAmount = Number(newAmountText);
+    if (!Number.isFinite(newAmount) || newAmount <= 0) {
+      alert("সঠিক টাকার পরিমাণ লিখুন।");
+      return;
+    }
+
+    const newMonthText = prompt(
+      "নতুন জমার মাস লিখুন (যেমন: 2026-06):",
+      deposit.deposit_month.slice(0, 7)
+    );
+    if (newMonthText === null) return;
+
+    if (!/^\d{4}-\d{2}$/.test(newMonthText)) {
+      alert("মাসটি YYYY-MM নিয়মে লিখুন।");
+      return;
+    }
+
+    const monthParts = newMonthText.split("-");
+    const monthNumber = Number(monthParts[1]);
+
+    if (monthNumber < 1 || monthNumber > 12) {
+      alert("সঠিক মাস লিখুন।");
+      return;
+    }
+
+    const newMemberNoText = prompt(
+      "সদস্য পরিবর্তন করতে নতুন সদস্য নম্বর লিখুন। পরিবর্তন না করলে ফাঁকা রাখুন:"
+    );
+    if (newMemberNoText === null) return;
+
+    let newMemberId = deposit.member_id;
+
+    if (newMemberNoText.trim() !== "") {
+      const newMemberNo = Number(newMemberNoText);
+
+      if (!Number.isInteger(newMemberNo) || newMemberNo <= 0) {
+        alert("সঠিক সদস্য নম্বর লিখুন।");
+        return;
+      }
+
+      const { data: foundMember, error: memberError } =
+        await supabaseClient
+          .from("members")
+          .select("id")
+          .eq("member_no", newMemberNo)
+          .single();
+
+      if (memberError || !foundMember) {
+        alert("এই সদস্য নম্বর পাওয়া যায়নি।");
+        return;
+      }
+
+      newMemberId = foundMember.id;
+    }
+
+    const newMonth = newMonthText + "-01";
+
+    if (!confirm("জমার তথ্য সংশোধন করতে চান?")) return;
+
+    const { data: authData, error: authError } =
+      await supabaseClient.auth.getUser();
+
+    if (authError || !authData.user) {
+      alert("Admin পরিচয় পাওয়া যায়নি। আবার Login করুন।");
+      return;
+    }
+
+    const { data: historyRow, error: historyError } =
+      await supabaseClient
+        .from("deposit_edit_history")
+        .insert([{
+          deposit_id: deposit.id,
+          old_amount: deposit.amount,
+          new_amount: newAmount,
+          old_month: deposit.deposit_month,
+          new_month: newMonth,
+          old_member_id: deposit.member_id,
+          new_member_id: newMemberId,
+          changed_by: authData.user.id
+        }])
+        .select("id")
+        .single();
+
+    if (historyError) {
+      alert("পরিবর্তনের ইতিহাস সংরক্ষণ হয়নি: " + historyError.message);
+      return;
+    }
+
+    const { error: updateError } = await supabaseClient
+      .from("deposits")
+      .update({
+        amount: newAmount,
+        deposit_month: newMonth,
+        member_id: newMemberId
+      })
+      .eq("id", deposit.id);
+
+    if (updateError) {
+      await supabaseClient
+        .from("deposit_edit_history")
+        .delete()
+        .eq("id", historyRow.id);
+
+      alert("জমা সংশোধন হয়নি: " + updateError.message);
+      return;
+    }
+
+    alert("জমার তথ্য সংশোধন হয়েছে।");
+    await historyButton.click();
+    await loadDashboard();
+  });
+
+  item.appendChild(editButton);
+  depositHistory.appendChild(item);
+});
+
+});
+    document.getElementById("logoutButton")
+      .addEventListener("click", async function() {
+        await supabaseClient.auth.signOut();
+        location.reload();
+      });
+  </script>
+</body>
+</html>
