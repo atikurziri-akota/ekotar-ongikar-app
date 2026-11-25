@@ -673,7 +673,49 @@ fineButton.addEventListener("click", async function() {
   fineButton.disabled = false;
   fineButton.textContent = "জরিমানা সংরক্ষণ করুন";
 });
+historyButton.addEventListener("click", async function() {
+  depositHistory.innerHTML = "";
 
+  const memberId = historyMember.value;
+
+  if (!memberId) {
+    depositHistory.textContent = "আগে একজন সদস্য নির্বাচন করুন।";
+    return;
+  }
+
+  depositHistory.textContent = "হিসাব লোড হচ্ছে...";
+
+  const { data, error } = await supabaseClient
+    .from("deposits")
+    .select("id, amount, deposit_month, deposit_date, note")
+    .eq("member_id", memberId)
+    .order("deposit_month", { ascending: false });
+
+  if (error) {
+    depositHistory.textContent =
+      "হিসাব লোড হয়নি: " + error.message;
+    return;
+  }
+
+  depositHistory.innerHTML = "";
+
+  if (!data || data.length === 0) {
+    depositHistory.textContent = "এই সদস্যের কোনো জমা পাওয়া যায়নি।";
+    return;
+  }
+
+  data.forEach(function(deposit) {
+    const item = document.createElement("p");
+
+    item.textContent =
+      "মাস: " + deposit.deposit_month +
+      " | টাকা: ৳" + deposit.amount +
+      " | জমার তারিখ: " + deposit.deposit_date +
+      " | ধরন: " + (deposit.note || "নেই");
+
+    depositHistory.appendChild(item);
+  });
+});
     document.getElementById("logoutButton")
       .addEventListener("click", async function() {
         await supabaseClient.auth.signOut();
