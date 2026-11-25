@@ -384,8 +384,14 @@ fineMember.appendChild(fineOption);
 
       updateDepositAmount();
       list.innerHTML = "";
-
+historyMember.innerHTML =
+  '<option value="">সদস্য নির্বাচন করুন</option>';
       data.forEach(function(member) {
+        const historyOption = document.createElement("option");
+historyOption.value = member.id;
+historyOption.textContent =
+  member.full_name + " (" + member.status + ")";
+historyMember.appendChild(historyOption);
         const item = document.createElement("p");
         item.textContent =
           "নম্বর: " + member.member_no +
