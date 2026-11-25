@@ -89,7 +89,7 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id), money=n=>"৳"+Number(n||0).toLocaleString("en-BD");
 let members=[],currentUser=null;
 const today=()=>new Date().toISOString().slice(0,10);
-$("mJoin").value="2025-08-01";$("depMonth").value="2025-08";$("fineDate").value=today();$("expenseDate").value=today();$("refundDate").value=today();$("reportMonth").value=today().slice(0,7);
+$("mJoin").value="2025-09-01";$("depMonth").value="2025-09";$("fineDate").value=today();$("expenseDate").value=today();$("refundDate").value=today();$("reportMonth").value=today().slice(0,7);
 function msg(id,text,ok=false){$(id).textContent=text;$(id).className=ok?"ok":"err"}
 function addOpt(sel,rows){$(sel).innerHTML='<option value="">সদস্য নির্বাচন করুন</option>';rows.forEach(m=>{let o=document.createElement("option");o.value=m.id;o.textContent=`${m.full_name} (নং ${m.member_no}, ${m.monthly_share} শেয়ার)`;$(sel).appendChild(o)})}
 function actionButton(parent,label,cls,fn){let b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;b.onclick=fn;parent.appendChild(b);return b}
