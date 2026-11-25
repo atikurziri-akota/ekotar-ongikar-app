@@ -181,7 +181,19 @@
 <p id="fineMessage"></p>
     <button id="depositButton" type="button">জমা সংরক্ষণ করুন</button>
     <p id="depositMessage" role="status"></p>
+<hr>
+<h3>জমার হিসাব ও সংশোধন</h3>
 
+<label for="historyMember">সদস্য নির্বাচন</label>
+<select id="historyMember">
+  <option value="">সদস্য নির্বাচন করুন</option>
+</select>
+
+<button id="historyButton" type="button">
+  জমার হিসাব দেখুন
+</button>
+
+<div id="depositHistory"></div>
     <hr>
     <button id="logoutButton" type="button">লগআউট</button>
   </main>
@@ -217,6 +229,9 @@ const fineReason = document.getElementById("fineReason");
 const fineDate = document.getElementById("fineDate");
 const fineMessage = document.getElementById("fineMessage");
 const fineButton = document.getElementById("fineButton");
+    const historyMember = document.getElementById("historyMember");
+const historyButton = document.getElementById("historyButton");
+const depositHistory = document.getElementById("depositHistory");
     let activeMembers = [];
 
     async function loadDashboard() {
