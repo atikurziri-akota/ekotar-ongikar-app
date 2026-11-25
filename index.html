@@ -123,8 +123,132 @@ $("showHistory").onclick=async()=>{let id=$("historyMember").value;if(!id)return
  actionButton(d,"ডিলিট","danger",async()=>{if(!confirm("এই জমার রেকর্ড ও সংশ্লিষ্ট রসিদ মুছবেন? পরিবর্তনের ইতিহাসে ডিলিট রেকর্ড থাকবে।"))return;let {error:re}=await db.from("receipts").delete().eq("deposit_id",r.id);if(re)return alert("সংশ্লিষ্ট রসিদ মুছতে সমস্যা: "+re.message);let {error}=await db.from("deposits").delete().eq("id",r.id);if(error)alert("জমা ডিলিট হয়নি: "+error.message);else{alert("জমা ডিলিট হয়েছে");await $("showHistory").onclick();await loadStats()}});
  $("history").append(d)})};
 function monthCount(from,to){let [y1,m1]=from.split("-").map(Number),[y2,m2]=to.split("-").map(Number);return Math.max(0,(y2-y1)*12+m2-m1+1)}
-$("loadDues").onclick=async()=>{let [{data:d,error:de},{data:all,error:me}]=await Promise.all([db.from("deposits").select("member_id,amount,deposit_month,note"),db.from("members").select("id,member_no,full_name,monthly_share,status,join_date").order("member_no")]);if(de||me)return $("dues").textContent=(de||me).message;let now=today().slice(0,7);let rows=all.map(m=>{let start=(m.join_date||"2025-09-01").slice(0,7);if(start<"2025-09")start="2025-09";let months=monthCount(start,now),monthlyDue=months*2000*Number(m.monthly_share||1);let decs=0;for(let y=Number(start.slice(0,4));y<=Number(now.slice(0,4));y++){let dec=`${y}-12`;if(dec>=start&&dec<=now)decs++}let annualDue=decs*6000*Number(m.monthly_share||1);let paid=(d||[]).filter(x=>x.member_id===m.id);let paidMonthly=paid.filter(x=>(x.note||"").includes("মাসিক")).reduce((s,x)=>s+Number(x.amount),0);let paidAnnual=paid.filter(x=>(x.note||"").includes("অতিরিক্ত")).reduce((s,x)=>s+Number(x.amount),0);return {...m,due:monthlyDue+annualDue,paid:paidMonthly+paidAnnual,balance:Math.max(0,monthlyDue+annualDue-paidMonthly-paidAnnual)}});$("dues").innerHTML="<p class='muted'>বকেয়া হিসাব বর্তমান শেয়ার সংখ্যা ও যোগদানের তারিখ ধরে আনুমানিক হিসাব। অতীতে শেয়ার পরিবর্তন হয়ে থাকলে তা আলাদাভাবে সমন্বয় করতে হবে।</p>";rows.forEach(r=>{let p=document.createElement("p");p.className="item";p.textContent=`নং ${r.member_no} ${r.full_name} | মোট নির্ধারিত ${money(r.due)} | জমা ${money(r.paid)} | বকেয়া ${money(r.balance)}`;$("dues").append(p)})};
-$("saveFine").onclick=async()=>{let row={member_id:$("fineMember").value,amount:Number($("fineAmount").value),reason:$("fineReason").value.trim()||null,fine_date:$("fineDate").value,paid:false};if(!row.member_id||row.amount<=0||!row.fine_date)return msg("fineMsg","সব তথ্য পূরণ করুন");let {error}=await db.from("fines").insert(row);if(error)msg("fineMsg",error.message);else{msg("fineMsg","জরিমানা সংরক্ষণ হয়েছে",true);await loadFines();await loadStats()}};
+$("loadDues").onclick=async()=>{
+  $("dues").textContent="হিসাব তৈরি হচ্ছে...";
+
+  let [
+    {data:deposits,error:de},
+    {data:all,error:me},
+    {data:history,error:he}
+  ]=await Promise.all([
+    db.from("deposits").select("member_id,amount,deposit_month,note"),
+    db.from("members").select("id,member_no,full_name,status,join_date").order("member_no"),
+    db.from("member_share_history").select("member_id,effective_from,share_count").order("effective_from")
+  ]);
+
+  if(de||me||he){
+    $("dues").textContent=(de||me||he).message;
+    return;
+  }
+
+  let now=today().slice(0,7);
+  let startMonth="2025-09";
+
+  $("dues").innerHTML="";
+
+  let info=document.createElement("p");
+  info.className="muted";
+  info.textContent="হিসাব শুরু ১ সেপ্টেম্বর ২০২৫ থেকে। মাসিক জমা ৳২,০০০/শেয়ার এবং ডিসেম্বরের অতিরিক্ত জমা ৳৬,০০০/শেয়ার। পুরোনো শেয়ারের তথ্য না থাকলে সেই মাস অনুমান করা হবে না।";
+  $("dues").append(info);
+
+  let totalDue=0,totalPaid=0,totalBalance=0;
+
+  for(let m of all){
+
+    let start=(m.join_date||"2025-09-01").slice(0,7);
+    if(start<startMonth)start=startMonth;
+
+    let memberHistory=(history||[])
+      .filter(h=>h.member_id===m.id)
+      .sort((a,b)=>a.effective_from.localeCompare(b.effective_from));
+
+    let due=0;
+    let unknown=[];
+    let month=start;
+
+    while(month<=now){
+
+      let lastDay=new Date(
+        Number(month.slice(0,4)),
+        Number(month.slice(5,7)),
+        0
+      ).getDate();
+
+      let monthEnd=month+"-"+String(lastDay).padStart(2,"0");
+
+      let applicable=memberHistory.filter(
+        h=>h.effective_from<=monthEnd
+      );
+
+      if(applicable.length===0){
+        unknown.push(month);
+      }else{
+        let share=Number(applicable[applicable.length-1].share_count);
+
+        due+=2000*share;
+
+        if(month.endsWith("-12")){
+          due+=6000*share;
+        }
+      }
+
+      let [y,mm]=month.split("-").map(Number);
+      mm++;
+      if(mm>12){y++;mm=1;}
+      month=y+"-"+String(mm).padStart(2,"0");
+    }
+
+    let paidRecords=(deposits||[]).filter(
+      x=>x.member_id===m.id
+    );
+
+    let paidMonthly=paidRecords
+      .filter(x=>(x.note||"").includes("মাসিক"))
+      .reduce((s,x)=>s+Number(x.amount),0);
+
+    let paidAnnual=paidRecords
+      .filter(x=>(x.note||"").includes("অতিরিক্ত"))
+      .reduce((s,x)=>s+Number(x.amount),0);
+
+    let paid=paidMonthly+paidAnnual;
+    let balance=Math.max(0,due-paid);
+
+    totalDue+=due;
+    totalPaid+=paid;
+    totalBalance+=balance;
+
+    let div=document.createElement("div");
+    div.className="item";
+
+    let p=document.createElement("p");
+    p.textContent=
+      "সদস্য নং "+m.member_no+" | "+m.full_name+
+      " | নির্ধারিত: "+money(due)+
+      " | জমা: "+money(paid)+
+      " | বকেয়া: "+money(balance);
+
+    div.append(p);
+
+    if(unknown.length){
+      let warning=document.createElement("p");
+      warning.className="err";
+      warning.textContent="শেয়ারের তথ্য নেই: "+unknown.join(", ");
+      div.append(warning);
+    }
+
+    $("dues").append(div);
+  }
+
+  let summary=document.createElement("div");
+  summary.className="panel";
+  summary.innerHTML=
+    "<b>সর্বমোট হিসাব</b>"+
+    "<p>মোট নির্ধারিত: "+money(totalDue)+"</p>"+
+    "<p>মোট জমা: "+money(totalPaid)+"</p>"+
+    "<p><b>মোট বকেয়া: "+money(totalBalance)+"</b></p>";
+
+  $("dues").prepend(summary);
+};$("saveFine").onclick=async()=>{let row={member_id:$("fineMember").value,amount:Number($("fineAmount").value),reason:$("fineReason").value.trim()||null,fine_date:$("fineDate").value,paid:false};if(!row.member_id||row.amount<=0||!row.fine_date)return msg("fineMsg","সব তথ্য পূরণ করুন");let {error}=await db.from("fines").insert(row);if(error)msg("fineMsg",error.message);else{msg("fineMsg","জরিমানা সংরক্ষণ হয়েছে",true);await loadFines();await loadStats()}};
 async function loadFines(){let {data,error}=await db.from("fines").select("id,amount,reason,fine_date,paid,paid_at,members(full_name,member_no)").order("fine_date",{ascending:false});if(error)return $("fines").textContent=error.message;$("fines").innerHTML="";let unpaid=0,paid=0;(data||[]).forEach(f=>{if(f.paid)paid+=Number(f.amount);else unpaid+=Number(f.amount);let d=document.createElement("div");d.className="item";let p=document.createElement("p");p.textContent=`${f.members?.full_name||"সদস্য"} (নং ${f.members?.member_no||""}) | ${money(f.amount)} | ${f.fine_date} | ${f.reason||""} | ${f.paid?"পরিশোধিত":"বকেয়া"}`;d.append(p);
  actionButton(d,"সম্পাদনা","",async()=>{let amount=Number(prompt("জরিমানার পরিমাণ",f.amount));if(!Number.isFinite(amount)||amount<=0)return alert("সঠিক পরিমাণ লিখুন");let reason=prompt("কারণ",f.reason||"");if(reason===null)return;let date=prompt("তারিখ (YYYY-MM-DD)",f.fine_date);if(date===null)return;let paidNow=confirm("জরিমানাটি কি ইতিমধ্যে পরিশোধিত? OK = হ্যাঁ, Cancel = বকেয়া");let {error}=await db.from("fines").update({amount,reason:reason.trim()||null,fine_date:date,paid:paidNow,paid_at:paidNow?(f.paid_at||today()):null}).eq("id",f.id);if(error)alert(error.message);else{await loadFines();await loadStats()}});
  if(!f.paid)actionButton(d,"পরিশোধিত করুন","secondary",async()=>{if(!confirm("জরিমানা সত্যিই পরিশোধ হয়েছে?"))return;let {error}=await db.from("fines").update({paid:true,paid_at:today()}).eq("id",f.id);if(error)alert(error.message);else{await loadFines();await loadStats()}});
