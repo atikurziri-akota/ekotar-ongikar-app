@@ -179,6 +179,12 @@
 
 <button id="fineButton" type="button">জরিমানা সংরক্ষণ করুন</button>
 <p id="fineMessage"></p>
+
+<hr>
+<h3>জরিমানার তালিকা ও পরিশোধ</h3>
+<button id="loadFinesButton" type="button">জরিমানার তালিকা দেখুন</button>
+<div id="fineList">এখনো জরিমানার তালিকা লোড হয়নি।</div>
+
     <button id="depositButton" type="button">জমা সংরক্ষণ করুন</button>
     <p id="depositMessage" role="status"></p>
 <hr>
@@ -229,6 +235,8 @@ const fineReason = document.getElementById("fineReason");
 const fineDate = document.getElementById("fineDate");
 const fineMessage = document.getElementById("fineMessage");
 const fineButton = document.getElementById("fineButton");
+const loadFinesButton = document.getElementById("loadFinesButton");
+const fineList = document.getElementById("fineList");
     const historyMember = document.getElementById("historyMember");
 const historyButton = document.getElementById("historyButton");
 const depositHistory = document.getElementById("depositHistory");
@@ -287,6 +295,7 @@ const depositHistory = document.getElementById("depositHistory");
 
         await loadDashboard();
         await loadMembers();
+        await loadFines();
 
       } catch (err) {
         message.style.color = "#d62828";
@@ -663,6 +672,7 @@ fineButton.addEventListener("click", async function() {
       "জরিমানা সফলভাবে সংরক্ষণ হয়েছে: ৳" + amount;
 
     await loadDashboard();
+    await loadFines();
 
   } catch (err) {
     fineMessage.style.color = "#b42318";
@@ -673,6 +683,93 @@ fineButton.addEventListener("click", async function() {
   fineButton.disabled = false;
   fineButton.textContent = "জরিমানা সংরক্ষণ করুন";
 });
+async function loadFines() {
+  fineList.textContent = "জরিমানার তালিকা লোড হচ্ছে...";
+
+  const { data, error } = await supabaseClient
+    .from("fines")
+    .select("id, amount, reason, fine_date, paid, paid_at, members(full_name, member_no)")
+    .order("fine_date", { ascending: false });
+
+  if (error) {
+    fineList.textContent = "জরিমানার তালিকা লোড হয়নি: " + error.message;
+    return;
+  }
+
+  fineList.innerHTML = "";
+
+  if (!data || data.length === 0) {
+    fineList.textContent = "এখনো কোনো জরিমানা পাওয়া যায়নি।";
+    return;
+  }
+
+  let unpaidTotal = 0;
+  let paidTotal = 0;
+
+  data.forEach(function(fine) {
+    if (fine.paid) paidTotal += Number(fine.amount);
+    else unpaidTotal += Number(fine.amount);
+
+    const item = document.createElement("div");
+    item.style.borderBottom = "1px solid #ddd";
+    item.style.padding = "12px 0";
+
+    const details = document.createElement("p");
+    const memberName = fine.members?.full_name || "সদস্যের নাম পাওয়া যায়নি";
+    const memberNo = fine.members?.member_no || "";
+    details.textContent =
+      "সদস্য: " + memberName + (memberNo ? " (নং " + memberNo + ")" : "") +
+      " | জরিমানা: ৳" + fine.amount +
+      " | তারিখ: " + fine.fine_date +
+      " | কারণ: " + (fine.reason || "উল্লেখ নেই") +
+      " | অবস্থা: " + (fine.paid ? "পরিশোধিত" : "বকেয়া") +
+      (fine.paid_at ? " | পরিশোধের তারিখ: " + fine.paid_at : "");
+
+    item.appendChild(details);
+
+    if (!fine.paid) {
+      const paidButton = document.createElement("button");
+      paidButton.textContent = "পরিশোধিত হিসেবে চিহ্নিত করুন";
+      paidButton.style.background = "#087f5b";
+
+      paidButton.addEventListener("click", async function() {
+        if (!confirm("এই জরিমানাটি পরিশোধ হয়েছে নিশ্চিত?")) return;
+
+        paidButton.disabled = true;
+        const today = new Date().toISOString().slice(0, 10);
+
+        const { error: updateError } = await supabaseClient
+          .from("fines")
+          .update({ paid: true, paid_at: today })
+          .eq("id", fine.id);
+
+        if (updateError) {
+          alert("পরিশোধের তথ্য সংরক্ষণ হয়নি: " + updateError.message);
+          paidButton.disabled = false;
+          return;
+        }
+
+        alert("জরিমানা পরিশোধিত হিসেবে সংরক্ষণ হয়েছে।");
+        await loadFines();
+        await loadDashboard();
+      });
+
+      item.appendChild(paidButton);
+    }
+
+    fineList.appendChild(item);
+  });
+
+  const summary = document.createElement("p");
+  summary.style.fontWeight = "bold";
+  summary.textContent =
+    "মোট বকেয়া জরিমানা: ৳" + unpaidTotal +
+    " | মোট পরিশোধিত জরিমানা: ৳" + paidTotal;
+  fineList.prepend(summary);
+}
+
+loadFinesButton.addEventListener("click", loadFines);
+
 historyButton.addEventListener("click", async function() {
   depositHistory.innerHTML = "";
 
