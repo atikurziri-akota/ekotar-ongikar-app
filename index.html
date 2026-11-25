@@ -1,954 +1,109 @@
-
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>একতার অঙ্গীকার</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: 20px;
-      font-family: Arial, sans-serif;
-      background: #f3f6fb;
-      color: #172b4d;
-      min-height: 100vh;
-    }
-    .card, #adminDashboard {
-      width: 100%;
-      max-width: 600px;
-      margin: 30px auto;
-      padding: 25px;
-      background: white;
-      border-radius: 18px;
-      box-shadow: 0 8px 30px #172b4d18;
-    }
-    .login-card { max-width: 420px; }
-    .logo {
-      width: 65px;
-      height: 65px;
-      margin: auto;
-      border-radius: 18px;
-      background: #087f5b;
-      color: white;
-      display: grid;
-      place-items: center;
-      font-size: 30px;
-    }
-    h1, .sub { text-align: center; }
-    h1 { color: #087f5b; font-size: 24px; }
-    .sub { color: #718096; margin-bottom: 25px; }
-    label {
-      display: block;
-      margin: 16px 0 7px;
-      font-size: 14px;
-    }
-    input, select {
-      width: 100%;
-      padding: 13px;
-      border: 1px solid #d6deea;
-      border-radius: 10px;
-      font-size: 16px;
-      background: white;
-    }
-    button {
-      width: 100%;
-      margin-top: 18px;
-      padding: 14px;
-      border: 0;
-      border-radius: 10px;
-      background: #087f5b;
-      color: white;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    button:disabled { opacity: .6; }
-    #message, #memberMessage, #depositMessage {
-      text-align: center;
-      overflow-wrap: anywhere;
-    }
-    .stat {
-      padding: 12px;
-      margin: 10px 0;
-      background: #f3f6fb;
-      border-radius: 10px;
-    }
-    hr { margin: 25px 0; border: 0; border-top: 1px solid #ddd; }
-    #logoutButton { background: #b42318; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>একতার অঙ্গীকার — সমিতি হিসাব</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:16px;font-family:Arial,sans-serif;background:#f3f6fb;color:#172b4d}
+.card,#app{max-width:980px;margin:18px auto;padding:20px;background:#fff;border-radius:16px;box-shadow:0 5px 24px #172b4d14}
+.login{max-width:420px}.logo{text-align:center;font-size:34px}h1,h2{text-align:center;color:#087f5b}h3{color:#087f5b;margin-bottom:8px}
+label{display:block;margin:12px 0 6px;font-size:14px}input,select,textarea{width:100%;padding:11px;border:1px solid #ccd6e2;border-radius:8px;font-size:15px;background:white}
+button{padding:11px 14px;margin:7px 4px 7px 0;border:0;border-radius:8px;background:#087f5b;color:white;font-weight:bold;cursor:pointer}
+button.secondary{background:#52657a}button.danger{background:#b42318}button:disabled{opacity:.6}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.stat,.panel{background:#f3f6fb;padding:13px;border-radius:10px;margin:9px 0}
+section{border-top:1px solid #e1e7ef;padding-top:14px;margin-top:18px}.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.item{border-bottom:1px solid #e1e7ef;padding:10px 0;overflow-wrap:anywhere}.muted{color:#68778a;font-size:13px}.ok{color:#087f5b}.err{color:#b42318}.hidden{display:none}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{padding:8px;border:1px solid #dce3ec;text-align:left}th{background:#edf3f7}
+@media(max-width:600px){body{padding:7px}.card,#app{padding:13px}table{font-size:12px}}
+@media print{body{background:white;padding:0}.no-print,button,#app>h1,#app>p{display:none!important}.print-area{display:block!important}.card{box-shadow:none;margin:0}}
+</style>
 </head>
 <body>
-
-  <main class="card login-card">
-    <div class="logo">🤝</div>
-    <h1>একতার অঙ্গীকার</h1>
-    <p class="sub">৫০ জনের এক পরিবার</p>
-
-    <form id="loginForm">
-      <label for="email">ইমেইল ঠিকানা</label>
-      <input id="email" type="email" required placeholder="আপনার ইমেইল লিখুন">
-
-      <label for="password">পাসওয়ার্ড</label>
-      <input id="password" type="password" required placeholder="আপনার পাসওয়ার্ড লিখুন">
-
-      <button id="loginButton" type="submit">লগইন করুন</button>
-    </form>
-    <p id="message" role="status"></p>
-    <p class="sub">সদস্য ও অ্যাডমিনের প্রবেশদ্বার</p>
-  </main>
-
-  <main id="adminDashboard" style="display:none;">
-    <h2>অ্যাডমিন ড্যাশবোর্ড</h2>
-    <p>একতার অঙ্গীকার — ৫০ জনের এক পরিবার</p>
-
-    <div id="dashboardData">
-      <div class="stat">মোট সদস্য: <span id="totalMembers">লোড হচ্ছে...</span></div>
-      <div class="stat">মোট জমা: ৳<span id="totalDeposits">লোড হচ্ছে...</span></div>
-      <div class="stat">মোট জরিমানা: ৳<span id="totalFines">লোড হচ্ছে...</span></div>
-      <div class="stat">মোট খরচ: ৳<span id="totalExpenses">লোড হচ্ছে...</span></div>
-    </div>
-
-    <hr>
-    <h3>নতুন সদস্য যোগ করুন</h3>
-
-    <form id="memberForm">
-      <label for="memberNo">সদস্য নম্বর</label>
-      <input type="number" id="memberNo" min="1" required>
-
-      <label for="memberName">সদস্যের নাম</label>
-      <input type="text" id="memberName" required>
-
-      <label for="memberPhone">মোবাইল নম্বর</label>
-      <input type="tel" id="memberPhone">
-
-      <label for="memberShare">শেয়ার সংখ্যা</label>
-      <input type="number" id="memberShare" min="1" value="1" required>
-
-      <label for="memberNominee">নমিনির নাম</label>
-      <input type="text" id="memberNominee" placeholder="নমিনির পূর্ণ নাম">
-
-      <button id="memberButton" type="submit">সদস্য যোগ করুন</button>
-    </form>
-
-    <p id="memberMessage" role="status"></p>
-
-    <hr>
-    <h3>সদস্য তালিকা</h3>
-    <button id="loadMembersButton" type="button">সদস্য তালিকা দেখুন</button>
-    <div id="memberList">এখনো তালিকা লোড হয়নি।</div>
-
-    <hr>
-    <h3>মাসিক জমা গ্রহণ করুন</h3>
-
-    <label for="depositMember">সদস্য নির্বাচন</label>
-    <select id="depositMember" required>
-      <option value="">সদস্য নির্বাচন করুন</option>
-    </select>
-
-    <label for="depositMonth">জমার মাস</label>
-    <input type="month" id="depositMonth" required>
-
-    <label for="depositType">জমার ধরন</label>
-    <select id="depositType" required>
-      <option value="monthly">মাসিক মূল জমা</option>
-      <option value="annual">ডিসেম্বরের অতিরিক্ত জমা</option>
-    </select>
-
-    <label for="depositAmount">জমার পরিমাণ (টাকা)</label>
-    <input type="number" id="depositAmount" readonly>
-
-    <p id="depositCalculation"></p>
-<hr>
-<h3>জরিমানা গ্রহণ করুন</h3>
-
-<label for="fineMember">সদস্য নির্বাচন</label>
-<select id="fineMember" required>
-  <option value="">সদস্য নির্বাচন করুন</option>
-</select>
-
-<label for="fineAmount">জরিমানার পরিমাণ (টাকা)</label>
-<input type="number" id="fineAmount" value="50" min="1" required>
-
-<label for="fineReason">জরিমানার কারণ</label>
-<input type="text" id="fineReason" placeholder="যেমন: ১৫ তারিখের পরে জমা">
-
-<label for="fineDate">জরিমানার তারিখ</label>
-<input type="date" id="fineDate" required>
-
-<button id="fineButton" type="button">জরিমানা সংরক্ষণ করুন</button>
-<p id="fineMessage"></p>
-
-<hr>
-<h3>জরিমানার তালিকা ও পরিশোধ</h3>
-<button id="loadFinesButton" type="button">জরিমানার তালিকা দেখুন</button>
-<div id="fineList">এখনো জরিমানার তালিকা লোড হয়নি।</div>
-
-    <button id="depositButton" type="button">জমা সংরক্ষণ করুন</button>
-    <p id="depositMessage" role="status"></p>
-<hr>
-<h3>জমার হিসাব ও সংশোধন</h3>
-
-<label for="historyMember">সদস্য নির্বাচন</label>
-<select id="historyMember">
-  <option value="">সদস্য নির্বাচন করুন</option>
-</select>
-
-<button id="historyButton" type="button">
-  জমার হিসাব দেখুন
-</button>
-
-<div id="depositHistory"></div>
-    <hr>
-    <button id="logoutButton" type="button">লগআউট</button>
-  </main>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    
-    const SUPABASE_URL = "https://xlzpwrzejqvpdndkzloj.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_hPFsJ4F-jfJM4H5xRNK3Kg_jLSQDzIf";
-
-    const supabaseClient = window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_KEY
-    );
-
-    const loginForm = document.getElementById("loginForm");
-    const loginButton = document.getElementById("loginButton");
-    const message = document.getElementById("message");
-    const memberForm = document.getElementById("memberForm");
-    const memberButton = document.getElementById("memberButton");
-    const memberMessage = document.getElementById("memberMessage");
-
-    const depositMember = document.getElementById("depositMember");
-    const depositMonth = document.getElementById("depositMonth");
-    const depositType = document.getElementById("depositType");
-    const depositAmount = document.getElementById("depositAmount");
-    const depositCalculation = document.getElementById("depositCalculation");
-    const depositMessage = document.getElementById("depositMessage");
-    const depositButton = document.getElementById("depositButton");
-const fineMember = document.getElementById("fineMember");
-const fineAmount = document.getElementById("fineAmount");
-const fineReason = document.getElementById("fineReason");
-const fineDate = document.getElementById("fineDate");
-const fineMessage = document.getElementById("fineMessage");
-const fineButton = document.getElementById("fineButton");
-const loadFinesButton = document.getElementById("loadFinesButton");
-const fineList = document.getElementById("fineList");
-    const historyMember = document.getElementById("historyMember");
-const historyButton = document.getElementById("historyButton");
-const depositHistory = document.getElementById("depositHistory");
-    let activeMembers = [];
-
-    async function loadDashboard() {
-      const { data: stats, error } = await supabaseClient
-        .from("admin_dashboard")
-        .select("*")
-        .single();
-
-      if (error) {
-        document.getElementById("dashboardData").textContent =
-          "তথ্য লোড হয়নি: " + error.message;
-        return;
-      }
-
-      document.getElementById("totalMembers").textContent =
-        stats.total_members ?? 0;
-      document.getElementById("totalDeposits").textContent =
-        stats.total_deposits ?? 0;
-      document.getElementById("totalFines").textContent =
-        stats.total_fines ?? 0;
-      document.getElementById("totalExpenses").textContent =
-        stats.total_expenses ?? 0;
-    }
-
-    loginForm.addEventListener("submit", async function(event) {
-      event.preventDefault();
-      loginButton.disabled = true;
-      loginButton.textContent = "অপেক্ষা করুন...";
-      message.textContent = "";
-
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
-
-      try {
-        const { data, error } = await supabaseClient.auth
-          .signInWithPassword({ email, password });
-
-        if (error) throw error;
-
-        const { data: roleData, error: roleError } = await supabaseClient
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.user.id)
-          .single();
-
-        if (roleError || roleData?.role !== "admin") {
-          await supabaseClient.auth.signOut();
-          throw new Error("অ্যাডমিন অনুমতি পাওয়া যায়নি।");
-        }
-
-        document.querySelector(".login-card").style.display = "none";
-        document.getElementById("adminDashboard").style.display = "block";
-
-        await loadDashboard();
-        await loadMembers();
-        await loadFines();
-
-      } catch (err) {
-        message.style.color = "#d62828";
-        message.textContent = "লগইন হয়নি: " + err.message;
-      }
-
-      loginButton.disabled = false;
-      loginButton.textContent = "লগইন করুন";
-    });
-
-    memberForm.addEventListener("submit", async function(event) {
-      event.preventDefault();
-
-      memberButton.disabled = true;
-      memberButton.textContent = "যোগ হচ্ছে...";
-      memberMessage.textContent = "";
-
-      const memberNo = Number(document.getElementById("memberNo").value);
-      const memberName = document.getElementById("memberName").value.trim();
-      const memberPhone = document.getElementById("memberPhone").value.trim();
-      const memberShare = Number(document.getElementById("memberShare").value);
-      const memberNominee = document.getElementById("memberNominee").value.trim();
-
-      try {
-        if (!Number.isInteger(memberShare) || memberShare < 1) {
-          throw new Error("শেয়ার সংখ্যা কমপক্ষে ১ হতে হবে।");
-        }
-
-        const { error } = await supabaseClient
-          .from("members")
-          .insert([{
-            member_no: memberNo,
-            full_name: memberName,
-            phone: memberPhone || null,
-            monthly_share: memberShare,
-            nominee_name: memberNominee || null
-          }]);
-
-        if (error) throw error;
-
-        memberMessage.style.color = "#087f5b";
-        memberMessage.textContent = "সদস্য সফলভাবে যোগ হয়েছে।";
-        memberForm.reset();
-
-        await loadDashboard();
-        await loadMembers();
-
-      } catch (err) {
-        memberMessage.style.color = "#d62828";
-        memberMessage.textContent = "সদস্য যোগ হয়নি: " + err.message;
-      }
-
-      memberButton.disabled = false;
-      memberButton.textContent = "সদস্য যোগ করুন";
-    });
-
-    async function loadMembers() {
-      const list = document.getElementById("memberList");
-      list.textContent = "সদস্য তালিকা লোড হচ্ছে...";
-
-      const { data, error } = await supabaseClient
-        .from("members")
-        .select("id, member_no, full_name, phone, status, monthly_share, nominee_name")
-        .order("member_no", { ascending: true });
-
-      if (error) {
-        list.textContent = "তালিকা লোড হয়নি: " + error.message;
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        list.textContent = "কোনো সদস্য পাওয়া যায়নি।";
-        return;
-      }
-
-      activeMembers = data.filter(function(member) {
-        return member.status === "active";
-      });
-
-      depositMember.innerHTML =
-        '<option value="">সদস্য নির্বাচন করুন</option>';
-
-      activeMembers.forEach(function(member) {
-        const option = document.createElement("option");
-        option.value = member.id;
-        option.textContent =
-          member.full_name + " (" + member.monthly_share + " শেয়ার)";
-        depositMember.appendChild(option);
-        const fineOption = document.createElement("option");
-fineOption.value = member.id;
-fineOption.textContent =
-  member.full_name + " (" + member.monthly_share + " শেয়ার)";
-fineMember.appendChild(fineOption);
-      });
-
-      updateDepositAmount();
-      list.innerHTML = "";
-historyMember.innerHTML =
-  '<option value="">সদস্য নির্বাচন করুন</option>';
-      data.forEach(function(member) {
-        const historyOption = document.createElement("option");
-historyOption.value = member.id;
-historyOption.textContent =
-  member.full_name + " (" + member.status + ")";
-historyMember.appendChild(historyOption);
-        const item = document.createElement("p");
-        item.textContent =
-          "নম্বর: " + member.member_no +
-          " | নাম: " + member.full_name +
-          " | মোবাইল: " + (member.phone || "নেই") +
-          " | শেয়ার: " + member.monthly_share +
-          " | নমিনি: " + (member.nominee_name || "নেই") +
-          " | অবস্থা: " + member.status;
-
-        list.appendChild(item);
-
-        const editButton = document.createElement("button");
-        editButton.textContent = "Edit";
-        editButton.style.marginTop = "5px";
-
-        editButton.addEventListener("click", async function() {
-          const newName = prompt("সদস্যের নতুন নাম লিখুন:", member.full_name);
-          if (newName === null || !newName.trim()) return;
-
-          const newPhone = prompt("নতুন মোবাইল নম্বর লিখুন:", member.phone || "");
-          if (newPhone === null) return;
-
-          const newShare = prompt(
-            "নতুন শেয়ার সংখ্যা লিখুন:",
-            member.monthly_share
-          );
-          if (newShare === null) return;
-
-          const newNominee = prompt(
-            "নমিনির নাম লিখুন:",
-            member.nominee_name || ""
-          );
-          if (newNominee === null) return;
-
-          const shareCount = Number(newShare);
-
-          if (!Number.isInteger(shareCount) || shareCount < 1) {
-            alert("শেয়ার সংখ্যা কমপক্ষে ১ হতে হবে।");
-            return;
-          }
-
-          const { error: updateError } = await supabaseClient
-            .from("members")
-            .update({
-              full_name: newName.trim(),
-              phone: newPhone.trim() || null,
-              monthly_share: shareCount,
-              nominee_name: newNominee.trim() || null
-            })
-            .eq("member_no", member.member_no);
-
-          if (updateError) {
-            alert("সংশোধন হয়নি: " + updateError.message);
-          } else {
-            alert("সদস্যের তথ্য সংশোধন হয়েছে।");
-            await loadMembers();
-          }
-        });
-
-        list.appendChild(editButton);
-
-        
-const inactiveButton = document.createElement("button");
-
-inactiveButton.textContent =
-  member.status === "active" ? "Inactive করুন" : "আবার Active করুন";
-
-inactiveButton.style.marginTop = "5px";
-
-inactiveButton.addEventListener("click", async function() {
-  const newStatus =
-    member.status === "active" ? "inactive" : "active";
-
-  if (!confirm(
-    newStatus === "inactive"
-      ? "এই সদস্যকে Inactive করতে চান?"
-      : "এই সদস্যকে আবার Active করতে চান?"
-  )) return;
-
-  const { error } = await supabaseClient
-    .from("members")
-    .update({ status: newStatus })
-    .eq("id", member.id);
-
-  if (error) {
-    alert("পরিবর্তন করা যায়নি: " + error.message);
-  } else {
-    alert(
-      newStatus === "active"
-        ? "সদস্য আবার Active হয়েছে।"
-        : "সদস্য Inactive হয়েছে।"
-    );
-    await loadMembers();
-    await loadDashboard();
-  }
-});
-
-list.appendChild(inactiveButton);
-
-
-const deleteButton = document.createElement("button");
-deleteButton.textContent = "Delete";
-deleteButton.style.background = "#b42318";
-deleteButton.style.marginTop = "5px";
-
-deleteButton.addEventListener("click", async function() {
-  if (member.status !== "inactive") {
-    alert("আগে সদস্যকে Inactive করুন।");
-    return;
-  }
-
-  if (!confirm("Inactive সদস্যকে স্থায়ীভাবে মুছতে চান?")) return;
-
-  const { error } = await supabaseClient
-    .from("members")
-    .delete()
-    .eq("id", member.id);
-
-  if (error) {
-    alert("মুছে ফেলা যায়নি: " + error.message);
-  } else {
-    alert("সদস্য মুছে ফেলা হয়েছে।");
-    await loadMembers();
-    await loadDashboard();
-  }
-});
-
-list.appendChild(deleteButton);
-      });
-    }
-
-    document.getElementById("loadMembersButton")
-      .addEventListener("click", loadMembers);
-
-    function updateDepositAmount() {
-      const member = activeMembers.find(function(item) {
-        return item.id === depositMember.value;
-      });
-
-      const month = depositMonth.value;
-      const type = depositType.value;
-
-      depositAmount.value = "";
-      depositCalculation.textContent = "";
-
-      if (!member || !month) return;
-
-      if (type === "annual" && month.slice(5, 7) !== "12") {
-        depositCalculation.textContent =
-          "ডিসেম্বরের অতিরিক্ত জমা শুধু ডিসেম্বর মাসে নেওয়া যাবে।";
-        return;
-      }
-
-      const perShare = type === "monthly" ? 2000 : 6000;
-      const total = member.monthly_share * perShare;
-
-      depositAmount.value = total;
-      depositCalculation.textContent =
-        member.monthly_share + " শেয়ার × ৳" + perShare +
-        " = ৳" + total;
-    }
-
-    depositMember.addEventListener("change", updateDepositAmount);
-    depositMonth.addEventListener("change", updateDepositAmount);
-    depositType.addEventListener("change", updateDepositAmount);
-
-    depositButton.addEventListener("click", async function() {
-      depositMessage.textContent = "";
-
-      const memberId = depositMember.value;
-      const month = depositMonth.value;
-      const type = depositType.value;
-      const amount = Number(depositAmount.value);
-
-      if (!memberId || !month || !amount) {
-        depositMessage.style.color = "#b42318";
-        depositMessage.textContent =
-          "সদস্য, জমার মাস ও জমার ধরন নির্বাচন করুন।";
-        return;
-      }
-
-      if (type === "annual" && month.slice(5, 7) !== "12") {
-        depositMessage.style.color = "#b42318";
-        depositMessage.textContent =
-          "বার্ষিক অতিরিক্ত জমা শুধু ডিসেম্বর মাসে নেওয়া যাবে।";
-        return;
-      }
-
-      const depositMonthValue = month + "-01";
-      const note = type === "monthly" ? "মাসিক মূল জমা" : "ডিসেম্বরের অতিরিক্ত জমা";
-
-      depositButton.disabled = true;
-      depositButton.textContent = "সংরক্ষণ হচ্ছে...";
-
-      try {
-        const { data: existing, error: checkError } = await supabaseClient
-          .from("deposits")
-          .select("id")
-          .eq("member_id", memberId)
-          .eq("deposit_month", depositMonthValue)
-          .eq("note", note)
-          .maybeSingle();
-
-        if (checkError) throw checkError;
-
-        if (existing) {
-          throw new Error("এই সদস্যের এই মাসের এই ধরনের জমা আগে নেওয়া হয়েছে।");
-        }
-
-        const { error } = await supabaseClient
-          .from("deposits")
-          .insert([{
-            member_id: memberId,
-            amount: amount,
-            deposit_month: depositMonthValue,
-            note: note
-          }]);
-
-        if (error) throw error;
-
-        depositMessage.style.color = "#087f5b";
-        depositMessage.textContent =
-          "জমা সফলভাবে সংরক্ষণ হয়েছে: ৳" + amount;
-
-        await loadDashboard();
-
-      } catch (err) {
-        depositMessage.style.color = "#b42318";
-        depositMessage.textContent = "জমা সংরক্ষণ হয়নি: " + err.message;
-      }
-
-      depositButton.disabled = false;
-      depositButton.textContent = "জমা সংরক্ষণ করুন";
-    });
-
-fineButton.addEventListener("click", async function() {
-  fineMessage.textContent = "";
-
-  const memberId = fineMember.value;
-  const amount = Number(fineAmount.value);
-  const reason = fineReason.value.trim();
-  const date = fineDate.value;
-
-  if (!memberId || !amount || !date) {
-    fineMessage.style.color = "#b42318";
-    fineMessage.textContent =
-      "সদস্য, জরিমানার পরিমাণ ও তারিখ পূরণ করুন।";
-    return;
-  }
-
-  fineButton.disabled = true;
-  fineButton.textContent = "সংরক্ষণ হচ্ছে...";
-
-  try {
-    const { error } = await supabaseClient
-      .from("fines")
-      .insert([{
-        member_id: memberId,
-        amount: amount,
-        reason: reason || null,
-        fine_date: date,
-        paid: false
-      }]);
-
-    if (error) throw error;
-
-    fineMessage.style.color = "#087f5b";
-    fineMessage.textContent =
-      "জরিমানা সফলভাবে সংরক্ষণ হয়েছে: ৳" + amount;
-
-    await loadDashboard();
-    await loadFines();
-
-  } catch (err) {
-    fineMessage.style.color = "#b42318";
-    fineMessage.textContent =
-      "জরিমানা সংরক্ষণ হয়নি: " + err.message;
-  }
-
-  fineButton.disabled = false;
-  fineButton.textContent = "জরিমানা সংরক্ষণ করুন";
-});
-async function loadFines() {
-  fineList.textContent = "জরিমানার তালিকা লোড হচ্ছে...";
-
-  const { data, error } = await supabaseClient
-    .from("fines")
-    .select("id, amount, reason, fine_date, paid, paid_at, members(full_name, member_no)")
-    .order("fine_date", { ascending: false });
-
-  if (error) {
-    fineList.textContent = "জরিমানার তালিকা লোড হয়নি: " + error.message;
-    return;
-  }
-
-  fineList.innerHTML = "";
-
-  if (!data || data.length === 0) {
-    fineList.textContent = "এখনো কোনো জরিমানা পাওয়া যায়নি।";
-    return;
-  }
-
-  let unpaidTotal = 0;
-  let paidTotal = 0;
-
-  data.forEach(function(fine) {
-    if (fine.paid) paidTotal += Number(fine.amount);
-    else unpaidTotal += Number(fine.amount);
-
-    const item = document.createElement("div");
-    item.style.borderBottom = "1px solid #ddd";
-    item.style.padding = "12px 0";
-
-    const details = document.createElement("p");
-    const memberName = fine.members?.full_name || "সদস্যের নাম পাওয়া যায়নি";
-    const memberNo = fine.members?.member_no || "";
-    details.textContent =
-      "সদস্য: " + memberName + (memberNo ? " (নং " + memberNo + ")" : "") +
-      " | জরিমানা: ৳" + fine.amount +
-      " | তারিখ: " + fine.fine_date +
-      " | কারণ: " + (fine.reason || "উল্লেখ নেই") +
-      " | অবস্থা: " + (fine.paid ? "পরিশোধিত" : "বকেয়া") +
-      (fine.paid_at ? " | পরিশোধের তারিখ: " + fine.paid_at : "");
-
-    item.appendChild(details);
-
-    if (!fine.paid) {
-      const paidButton = document.createElement("button");
-      paidButton.textContent = "পরিশোধিত হিসেবে চিহ্নিত করুন";
-      paidButton.style.background = "#087f5b";
-
-      paidButton.addEventListener("click", async function() {
-        if (!confirm("এই জরিমানাটি পরিশোধ হয়েছে নিশ্চিত?")) return;
-
-        paidButton.disabled = true;
-        const today = new Date().toISOString().slice(0, 10);
-
-        const { error: updateError } = await supabaseClient
-          .from("fines")
-          .update({ paid: true, paid_at: today })
-          .eq("id", fine.id);
-
-        if (updateError) {
-          alert("পরিশোধের তথ্য সংরক্ষণ হয়নি: " + updateError.message);
-          paidButton.disabled = false;
-          return;
-        }
-
-        alert("জরিমানা পরিশোধিত হিসেবে সংরক্ষণ হয়েছে।");
-        await loadFines();
-        await loadDashboard();
-      });
-
-      item.appendChild(paidButton);
-    }
-
-    fineList.appendChild(item);
-  });
-
-  const summary = document.createElement("p");
-  summary.style.fontWeight = "bold";
-  summary.textContent =
-    "মোট বকেয়া জরিমানা: ৳" + unpaidTotal +
-    " | মোট পরিশোধিত জরিমানা: ৳" + paidTotal;
-  fineList.prepend(summary);
-}
-
-loadFinesButton.addEventListener("click", loadFines);
-
-historyButton.addEventListener("click", async function() {
-  depositHistory.innerHTML = "";
-
-  const memberId = historyMember.value;
-
-  if (!memberId) {
-    depositHistory.textContent = "আগে একজন সদস্য নির্বাচন করুন।";
-    return;
-  }
-
-  depositHistory.textContent = "হিসাব লোড হচ্ছে...";
-
-  const { data, error } = await supabaseClient
-    .from("deposits")
-    .select("id, amount, deposit_month, deposit_date, note, member_id")
-    .eq("member_id", memberId)
-    .order("deposit_month", { ascending: false });
-
-  if (error) {
-    depositHistory.textContent =
-      "হিসাব লোড হয়নি: " + error.message;
-    return;
-  }
-
-  depositHistory.innerHTML = "";
-
-  if (!data || data.length === 0) {
-    depositHistory.textContent = "এই সদস্যের কোনো জমা পাওয়া যায়নি।";
-    return;
-  }
-
-  
-data.forEach(function(deposit) {
-  const item = document.createElement("div");
-
-  item.style.borderBottom = "1px solid #ddd";
-  item.style.padding = "12px 0";
-
-  const details = document.createElement("p");
-  details.textContent =
-    "মাস: " + deposit.deposit_month +
-    " | টাকা: ৳" + deposit.amount +
-    " | জমার তারিখ: " + deposit.deposit_date +
-    " | ধরন: " + (deposit.note || "নেই");
-
-  item.appendChild(details);
-
-  const editButton = document.createElement("button");
-  editButton.textContent = "সংশোধন করুন";
-
-  editButton.addEventListener("click", async function() {
-    const newAmountText = prompt(
-      "নতুন জমার পরিমাণ লিখুন:",
-      deposit.amount
-    );
-    if (newAmountText === null) return;
-
-    const newAmount = Number(newAmountText);
-    if (!Number.isFinite(newAmount) || newAmount <= 0) {
-      alert("সঠিক টাকার পরিমাণ লিখুন।");
-      return;
-    }
-
-    const newMonthText = prompt(
-      "নতুন জমার মাস লিখুন (যেমন: 2026-06):",
-      deposit.deposit_month.slice(0, 7)
-    );
-    if (newMonthText === null) return;
-
-    if (!/^\d{4}-\d{2}$/.test(newMonthText)) {
-      alert("মাসটি YYYY-MM নিয়মে লিখুন।");
-      return;
-    }
-
-    const monthParts = newMonthText.split("-");
-    const monthNumber = Number(monthParts[1]);
-
-    if (monthNumber < 1 || monthNumber > 12) {
-      alert("সঠিক মাস লিখুন।");
-      return;
-    }
-
-    const newMemberNoText = prompt(
-      "সদস্য পরিবর্তন করতে নতুন সদস্য নম্বর লিখুন। পরিবর্তন না করলে ফাঁকা রাখুন:"
-    );
-    if (newMemberNoText === null) return;
-
-    let newMemberId = deposit.member_id;
-
-    if (newMemberNoText.trim() !== "") {
-      const newMemberNo = Number(newMemberNoText);
-
-      if (!Number.isInteger(newMemberNo) || newMemberNo <= 0) {
-        alert("সঠিক সদস্য নম্বর লিখুন।");
-        return;
-      }
-
-      const { data: foundMember, error: memberError } =
-        await supabaseClient
-          .from("members")
-          .select("id")
-          .eq("member_no", newMemberNo)
-          .single();
-
-      if (memberError || !foundMember) {
-        alert("এই সদস্য নম্বর পাওয়া যায়নি।");
-        return;
-      }
-
-      newMemberId = foundMember.id;
-    }
-
-    const newMonth = newMonthText + "-01";
-
-    if (!confirm("জমার তথ্য সংশোধন করতে চান?")) return;
-
-    const { data: authData, error: authError } =
-      await supabaseClient.auth.getUser();
-
-    if (authError || !authData.user) {
-      alert("Admin পরিচয় পাওয়া যায়নি। আবার Login করুন।");
-      return;
-    }
-
-    const { data: historyRow, error: historyError } =
-      await supabaseClient
-        .from("deposit_edit_history")
-        .insert([{
-          deposit_id: deposit.id,
-          old_amount: deposit.amount,
-          new_amount: newAmount,
-          old_month: deposit.deposit_month,
-          new_month: newMonth,
-          old_member_id: deposit.member_id,
-          new_member_id: newMemberId,
-          changed_by: authData.user.id
-        }])
-        .select("id")
-        .single();
-
-    if (historyError) {
-      alert("পরিবর্তনের ইতিহাস সংরক্ষণ হয়নি: " + historyError.message);
-      return;
-    }
-
-    const { error: updateError } = await supabaseClient
-      .from("deposits")
-      .update({
-        amount: newAmount,
-        deposit_month: newMonth,
-        member_id: newMemberId
-      })
-      .eq("id", deposit.id);
-
-    if (updateError) {
-      await supabaseClient
-        .from("deposit_edit_history")
-        .delete()
-        .eq("id", historyRow.id);
-
-      alert("জমা সংশোধন হয়নি: " + updateError.message);
-      return;
-    }
-
-    alert("জমার তথ্য সংশোধন হয়েছে।");
-    await historyButton.click();
-    await loadDashboard();
-  });
-
-  item.appendChild(editButton);
-  depositHistory.appendChild(item);
-});
-
-});
-    document.getElementById("logoutButton")
-      .addEventListener("click", async function() {
-        await supabaseClient.auth.signOut();
-        location.reload();
-      });
-  </script>
+<main class="card login" id="loginCard">
+<div class="logo">🤝</div><h1>একতার অঙ্গীকার</h1><p style="text-align:center">৫০ জনের এক পরিবার</p>
+<label>ইমেইল ঠিকানা</label><input id="email" type="email" autocomplete="username">
+<label>পাসওয়ার্ড</label><input id="password" type="password" autocomplete="current-password">
+<button id="loginBtn">লগইন করুন</button><p id="loginMsg" role="status"></p>
+</main>
+
+<main id="app" class="hidden">
+<h1>অ্যাডমিন ড্যাশবোর্ড</h1><p style="text-align:center">একতার অঙ্গীকার — ৫০ জনের এক পরিবার</p>
+<div class="grid">
+<div class="stat">মোট সদস্য: <b id="statMembers">০</b></div>
+<div class="stat">মোট জমা: <b id="statDeposits">৳০</b></div>
+<div class="stat">মোট জরিমানা: <b id="statFines">৳০</b></div>
+<div class="stat">মোট খরচ: <b id="statExpenses">৳০</b></div>
+</div>
+
+<section><h3>নতুন সদস্য যোগ করুন</h3>
+<div class="row"><div><label>সদস্য নম্বর</label><input id="mNo" type="number" min="1"></div><div><label>সদস্যের নাম</label><input id="mName"></div><div><label>মোবাইল</label><input id="mPhone"></div><div><label>শেয়ার সংখ্যা</label><input id="mShare" type="number" min="1" value="1"></div><div><label>নমিনির নাম</label><input id="mNominee"></div><div><label>যোগদানের তারিখ</label><input id="mJoin" type="date"></div></div>
+<button id="addMember">সদস্য যোগ করুন</button><p id="memberMsg"></p>
+<h3>সদস্য তালিকা</h3><button id="reloadMembers" class="secondary">তালিকা রিফ্রেশ</button><div id="members"></div></section>
+
+<section><h3>জমা গ্রহণ</h3><div class="row">
+<div><label>সদস্য</label><select id="depMember"></select></div>
+<div><label>জমার মাস</label><input id="depMonth" type="month"></div>
+<div><label>জমার ধরন</label><select id="depType"><option value="monthly">মাসিক মূল জমা</option><option value="annual">ডিসেম্বরের অতিরিক্ত জমা</option></select></div>
+<div><label>জমার পরিমাণ</label><input id="depAmount" type="number" readonly></div>
+</div><p id="depCalc" class="muted"></p><button id="saveDeposit">জমা সংরক্ষণ ও রসিদ তৈরি</button><p id="depMsg"></p>
+<h3>জমার ইতিহাস</h3><div class="row"><div><label>সদস্য নির্বাচন</label><select id="historyMember"></select></div></div><button id="showHistory" class="secondary">জমার হিসাব দেখুন</button><div id="history"></div></section>
+
+<section><h3>সদস্যভিত্তিক জমা ও বকেয়া</h3><button id="loadDues" class="secondary">বকেয়া হিসাব তৈরি করুন</button><p class="muted">হিসাবের শুরু ১ আগস্ট ২০২৫ থেকে। মাসিক জমা ৳২,০০০/শেয়ার; ডিসেম্বরের অতিরিক্ত জমা ৳৬,০০০/শেয়ার আলাদা। বর্তমান শেয়ার সংখ্যা ধরে হিসাব করা হয়।</p><div id="dues"></div></section>
+
+<section><h3>জরিমানা গ্রহণ ও পরিশোধ</h3><div class="row">
+<div><label>সদস্য</label><select id="fineMember"></select></div><div><label>জরিমানার পরিমাণ</label><input id="fineAmount" type="number" min="1" value="50"></div><div><label>কারণ</label><input id="fineReason"></div><div><label>তারিখ</label><input id="fineDate" type="date"></div>
+</div><button id="saveFine">জরিমানা সংরক্ষণ</button><p id="fineMsg"></p><button id="loadFines" class="secondary">জরিমানার তালিকা দেখুন</button><div id="fines"></div></section>
+
+<section><h3>আয়-ব্যয় হিসাব</h3><div class="row">
+<div><label>খরচের বিবরণ</label><input id="expenseTitle"></div><div><label>খরচের খাত</label><input id="expenseCategory" placeholder="যেমন: অফিস/ব্যাংক চার্জ"></div><div><label>টাকার পরিমাণ</label><input id="expenseAmount" type="number" min="1"></div><div><label>তারিখ</label><input id="expenseDate" type="date"></div>
+</div><label>নোট</label><input id="expenseNote"><button id="saveExpense">খরচ সংরক্ষণ</button><p id="expenseMsg"></p><button id="loadExpenses" class="secondary">খরচের তালিকা</button><div id="expenses"></div></section>
+
+<section><h3>মাসিক রিপোর্ট</h3><div class="row"><div><label>রিপোর্টের মাস</label><input id="reportMonth" type="month"></div></div><button id="makeReport">রিপোর্ট দেখুন</button><div id="report"></div></section>
+
+<section><h3>রসিদ খুঁজুন / প্রিন্ট</h3><label>রসিদ নম্বর</label><input id="receiptSearch" placeholder="রসিদ নম্বর লিখুন"><button id="findReceipt">রসিদ খুঁজুন</button><div id="receiptResult"></div></section>
+
+<section><h3>সদস্যের টাকা ফেরত</h3><div class="row"><div><label>সদস্য</label><select id="refundMember"></select></div><div><label>ফেরতের পরিমাণ</label><input id="refundAmount" type="number" min="1"></div><div><label>ফেরতের তারিখ</label><input id="refundDate" type="date"></div></div><label>নোট</label><input id="refundNote" placeholder="ফেরতের কারণ/অনুমোদন"><button id="saveRefund" class="danger">ফেরত সংরক্ষণ</button><p id="refundMsg"></p><button id="loadRefunds" class="secondary">ফেরতের তালিকা</button><div id="refunds"></div></section>
+
+<button id="logout" class="danger">লগআউট</button>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://xlzpwrzejqvpdndkzloj.supabase.co";
+const SUPABASE_KEY="sb_publishable_hPFsJ4F-jfJM4H5xRNK3Kg_jLSQDzIf";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id), money=n=>"৳"+Number(n||0).toLocaleString("en-BD");
+let members=[], deposits=[], currentUser=null;
+const today=()=>new Date().toISOString().slice(0,10);
+$("mJoin").value="2025-08-01";$("depMonth").value="2025-08";$("fineDate").value=today();$("expenseDate").value=today();$("refundDate").value=today();$("reportMonth").value=today().slice(0,7);
+function msg(id,text,ok=false){$(id).textContent=text;$(id).className=ok?"ok":"err"}
+function addOpt(sel,rows,all=false){$(sel).innerHTML='<option value="">সদস্য নির্বাচন করুন</option>';rows.forEach(m=>{let o=document.createElement("option");o.value=m.id;o.textContent=`${m.full_name} (নং ${m.member_no}, ${m.monthly_share} শেয়ার)`;$(sel).appendChild(o)})}
+async function adminCheck(user){const {data,error}=await db.from("user_roles").select("role").eq("user_id",user.id).single();if(error||data?.role!=="admin")throw Error("অ্যাডমিন অনুমতি পাওয়া যায়নি।")}
+$("loginBtn").onclick=async()=>{msg("loginMsg","");$("loginBtn").disabled=true;try{let {data,error}=await db.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});if(error)throw error;await adminCheck(data.user);currentUser=data.user;$("loginCard").classList.add("hidden");$("app").classList.remove("hidden");await refreshAll()}catch(e){msg("loginMsg","লগইন হয়নি: "+e.message)}$("loginBtn").disabled=false};
+async function refreshAll(){await Promise.all([loadMembers(),loadStats()]);}
+async function loadStats(){let [m,d,f,x]=await Promise.all([db.from("members").select("id",{count:"exact",head:true}),db.from("deposits").select("amount"),db.from("fines").select("amount"),db.from("expenses").select("amount")]);if(m.error||d.error||f.error||x.error){console.error(m.error||d.error||f.error||x.error);return}$("statMembers").textContent=m.count||0;$("statDeposits").textContent=money(d.data.reduce((s,r)=>s+Number(r.amount),0));$("statFines").textContent=money(f.data.reduce((s,r)=>s+Number(r.amount),0));$("statExpenses").textContent=money(x.data.reduce((s,r)=>s+Number(r.amount),0))}
+async function loadMembers(){let {data,error}=await db.from("members").select("id,member_no,full_name,phone,status,monthly_share,nominee_name,join_date").order("member_no");if(error){msg("memberMsg",error.message);return}members=data||[];let active=members.filter(m=>m.status==="active");["depMember","fineMember","refundMember"].forEach(id=>addOpt(id,active));addOpt("historyMember",members);$("members").innerHTML="";members.forEach(m=>{let d=document.createElement("div");d.className="item";let p=document.createElement("p");p.textContent=`নং ${m.member_no} | ${m.full_name} | মোবাইল: ${m.phone||"নেই"} | শেয়ার: ${m.monthly_share} | নমিনি: ${m.nominee_name||"নেই"} | ${m.status}`;d.append(p);let edit=document.createElement("button");edit.textContent="Edit";edit.onclick=async()=>{let name=prompt("সদস্যের নাম",m.full_name);if(name===null)return;let phone=prompt("মোবাইল",m.phone||"");if(phone===null)return;let share=Number(prompt("শেয়ার সংখ্যা",m.monthly_share));if(!Number.isInteger(share)||share<1)return alert("সঠিক শেয়ার লিখুন");let nominee=prompt("নমিনি",m.nominee_name||"");if(nominee===null)return;let {error}=await db.from("members").update({full_name:name.trim(),phone:phone.trim()||null,monthly_share:share,nominee_name:nominee.trim()||null}).eq("id",m.id);if(error)alert(error.message);else await loadMembers()};let status=document.createElement("button");status.className="secondary";status.textContent=m.status==="active"?"Inactive করুন":"আবার Active করুন";status.onclick=async()=>{let next=m.status==="active"?"inactive":"active";if(!confirm("অবস্থা পরিবর্তন করবেন?"))return;let {error}=await db.from("members").update({status:next}).eq("id",m.id);if(error)alert(error.message);else await loadMembers()};d.append(edit,status);$("members").append(d)});updateAmount()}
+$("addMember").onclick=async()=>{let row={member_no:Number($("mNo").value),full_name:$("mName").value.trim(),phone:$("mPhone").value.trim()||null,monthly_share:Number($("mShare").value),nominee_name:$("mNominee").value.trim()||null,join_date:$("mJoin").value||"2025-08-01"};if(!row.member_no||!row.full_name||!Number.isInteger(row.monthly_share)||row.monthly_share<1)return msg("memberMsg","সব তথ্য সঠিকভাবে পূরণ করুন");let {error}=await db.from("members").insert(row);if(error)msg("memberMsg",error.message);else{msg("memberMsg","সদস্য যোগ হয়েছে",true);["mNo","mName","mPhone","mNominee"].forEach(id=>$(id).value="");$("mShare").value=1;await refreshAll()}};
+function updateAmount(){let m=members.find(x=>x.id===$("depMember").value),month=$("depMonth").value,type=$("depType").value;$("depAmount").value="";$("depCalc").textContent="";if(!m||!month)return;if(type==="annual"&&!month.endsWith("-12")){$("depCalc").textContent="অতিরিক্ত জমা শুধু ডিসেম্বর মাসে";return}let unit=type==="monthly"?2000:6000,total=unit*Number(m.monthly_share);$("depAmount").value=total;$("depCalc").textContent=`${m.monthly_share} শেয়ার × ${money(unit)} = ${money(total)}`}
+["depMember","depMonth","depType"].forEach(id=>$(id).onchange=updateAmount);
+$("saveDeposit").onclick=async()=>{let m=members.find(x=>x.id===$("depMember").value),month=$("depMonth").value,type=$("depType").value,amount=Number($("depAmount").value);if(!m||!month||!amount)return msg("depMsg","সদস্য, মাস ও ধরন নির্বাচন করুন");let monthDate=month+"-01",note=type==="monthly"?"মাসিক মূল জমা":"ডিসেম্বরের অতিরিক্ত জমা";let {data:old,error:ce}=await db.from("deposits").select("id").eq("member_id",m.id).eq("deposit_month",monthDate).eq("note",note).maybeSingle();if(ce)return msg("depMsg",ce.message);if(old)return msg("depMsg","এই জমা আগে সংরক্ষিত হয়েছে");let {data:dep,error}=await db.from("deposits").insert({member_id:m.id,amount,deposit_month:monthDate,note}).select("id,deposit_date").single();if(error)return msg("depMsg",error.message);let receiptNo="EA-"+Date.now();let {error:re}=await db.from("receipts").insert({deposit_id:dep.id,receipt_no:receiptNo,issued_date:today()});if(re){msg("depMsg","জমা হয়েছে, কিন্তু রসিদ তৈরি হয়নি: "+re.message);await loadStats();return}msg("depMsg","জমা ও রসিদ তৈরি হয়েছে: "+receiptNo,true);$("receiptSearch").value=receiptNo;await showReceipt(receiptNo);await loadStats()};
+$("showHistory").onclick=async()=>{let id=$("historyMember").value;if(!id)return $("history").textContent="সদস্য নির্বাচন করুন";let {data,error}=await db.from("deposits").select("id,amount,deposit_month,deposit_date,note").eq("member_id",id).order("deposit_month",{ascending:false});if(error)return $("history").textContent=error.message;$("history").innerHTML="";(data||[]).forEach(r=>{let p=document.createElement("p");p.className="item";p.textContent=`${r.deposit_month} | ${money(r.amount)} | ${r.note||""} | জমার তারিখ: ${r.deposit_date||"—"}`;$("history").append(p)})};
+function monthCount(from,to){let [y1,m1]=from.split("-").map(Number),[y2,m2]=to.split("-").map(Number);return Math.max(0,(y2-y1)*12+m2-m1+1)}
+$("loadDues").onclick=async()=>{let [{data:d,error:de},{data:all,error:me}]=await Promise.all([db.from("deposits").select("member_id,amount,deposit_month,note"),db.from("members").select("id,member_no,full_name,monthly_share,status,join_date").order("member_no")]);if(de||me)return $("dues").textContent=(de||me).message;let now=today().slice(0,7);let rows=all.map(m=>{let start=(m.join_date||"2025-08-01").slice(0,7);if(start<"2025-08")start="2025-08";let months=monthCount(start,now),monthlyDue=months*2000*Number(m.monthly_share||1);let decs=0;for(let y=Number(start.slice(0,4));y<=Number(now.slice(0,4));y++){let dec=`${y}-12`;if(dec>=start&&dec<=now)decs++}let annualDue=decs*6000*Number(m.monthly_share||1);let paid=(d||[]).filter(x=>x.member_id===m.id);let paidMonthly=paid.filter(x=>(x.note||"").includes("মাসিক")).reduce((s,x)=>s+Number(x.amount),0);let paidAnnual=paid.filter(x=>(x.note||"").includes("অতিরিক্ত")).reduce((s,x)=>s+Number(x.amount),0);return {...m,due:monthlyDue+annualDue,paid:paidMonthly+paidAnnual,balance:Math.max(0,monthlyDue+annualDue-paidMonthly-paidAnnual)}});$("dues").innerHTML="<p class='muted'>বকেয়া হিসাব বর্তমান শেয়ার সংখ্যা ও যোগদানের তারিখ ধরে আনুমানিক হিসাব। অতীতে শেয়ার পরিবর্তন হয়ে থাকলে তা আলাদাভাবে সমন্বয় করতে হবে।</p>";rows.forEach(r=>{let p=document.createElement("p");p.className="item";p.textContent=`নং ${r.member_no} ${r.full_name} | মোট নির্ধারিত ${money(r.due)} | জমা ${money(r.paid)} | বকেয়া ${money(r.balance)}`;$("dues").append(p)})};
+$("saveFine").onclick=async()=>{let row={member_id:$("fineMember").value,amount:Number($("fineAmount").value),reason:$("fineReason").value.trim()||null,fine_date:$("fineDate").value,paid:false};if(!row.member_id||row.amount<=0||!row.fine_date)return msg("fineMsg","সব তথ্য পূরণ করুন");let {error}=await db.from("fines").insert(row);if(error)msg("fineMsg",error.message);else{msg("fineMsg","জরিমানা সংরক্ষণ হয়েছে",true);await loadFines();await loadStats()}};
+async function loadFines(){let {data,error}=await db.from("fines").select("id,amount,reason,fine_date,paid,paid_at,members(full_name,member_no)").order("fine_date",{ascending:false});if(error)return $("fines").textContent=error.message;$("fines").innerHTML="";let unpaid=0,paid=0;(data||[]).forEach(f=>{if(f.paid)paid+=Number(f.amount);else unpaid+=Number(f.amount);let d=document.createElement("div");d.className="item";let p=document.createElement("p");p.textContent=`${f.members?.full_name||"সদস্য"} (নং ${f.members?.member_no||""}) | ${money(f.amount)} | ${f.fine_date} | ${f.reason||""} | ${f.paid?"পরিশোধিত":"বকেয়া"}`;d.append(p);if(!f.paid){let b=document.createElement("button");b.textContent="পরিশোধিত হিসেবে চিহ্নিত করুন";b.onclick=async()=>{if(!confirm("জরিমানা সত্যিই পরিশোধ হয়েছে?"))return;let {error}=await db.from("fines").update({paid:true,paid_at:today()}).eq("id",f.id);if(error)alert(error.message);else{await loadFines();await loadStats()}};d.append(b)}$("fines").append(d)});let s=document.createElement("b");s.textContent=`মোট বকেয়া: ${money(unpaid)} | পরিশোধিত: ${money(paid)}`;$("fines").prepend(s)}
+$("loadFines").onclick=loadFines;
+$("saveExpense").onclick=async()=>{let row={title:$("expenseTitle").value.trim(),category:$("expenseCategory").value.trim()||null,amount:Number($("expenseAmount").value),expense_date:$("expenseDate").value,note:$("expenseNote").value.trim()||null};if(!row.title||row.amount<=0||!row.expense_date)return msg("expenseMsg","বিবরণ, পরিমাণ ও তারিখ পূরণ করুন");let {error}=await db.from("expenses").insert(row);if(error)msg("expenseMsg",error.message);else{msg("expenseMsg","খরচ সংরক্ষণ হয়েছে",true);await loadExpenses();await loadStats()}};
+async function loadExpenses(){let {data,error}=await db.from("expenses").select("*").order("expense_date",{ascending:false});if(error)return $("expenses").textContent=error.message;$("expenses").innerHTML="";(data||[]).forEach(x=>{let p=document.createElement("p");p.className="item";p.textContent=`${x.expense_date} | ${x.title} | ${x.category||""} | ${money(x.amount)} | ${x.note||""}`;$("expenses").append(p)})}
+$("loadExpenses").onclick=loadExpenses;
+$("makeReport").onclick=async()=>{let month=$("reportMonth").value;if(!month)return;let start=month+"-01",end=month+"-31";let [d,f,x,r]=await Promise.all([db.from("deposits").select("amount,note").gte("deposit_month",start).lte("deposit_month",end),db.from("fines").select("amount,paid").gte("fine_date",start).lte("fine_date",end),db.from("expenses").select("amount").gte("expense_date",start).lte("expense_date",end),db.from("member_refunds").select("amount").gte("refund_date",start).lte("refund_date",end)]);let err=d.error||f.error||x.error||r.error;if(err)return $("report").textContent=err.message;let sum=a=>(a||[]).reduce((s,z)=>s+Number(z.amount),0),dep=sum(d.data),finePaid=sum((f.data||[]).filter(z=>z.paid)),expense=sum(x.data),refund=sum(r.data);$("report").innerHTML=`<div class="panel"><b>${month} মাসের রিপোর্ট</b><p>জমা: ${money(dep)}</p><p>জরিমানা আদায়: ${money(finePaid)}</p><p>খরচ: ${money(expense)}</p><p>সদস্য ফেরত: ${money(refund)}</p><p><b>নিট নগদ প্রবাহ: ${money(dep+finePaid-expense-refund)}</b></p><button onclick="window.print()">রিপোর্ট প্রিন্ট</button></div>`};
+async function showReceipt(no){let {data,error}=await db.from("receipts").select("receipt_no,issued_date,deposits(amount,deposit_month,note,members(full_name,member_no,phone))").eq("receipt_no",no).single();if(error)return $("receiptResult").textContent="রসিদ পাওয়া যায়নি: "+error.message;let d=data.deposits||{};let m=d.members||{};$("receiptResult").innerHTML=`<div class="card print-area"><h2>একতার অঙ্গীকার</h2><h3 style="text-align:center">জমার রসিদ</h3><p>রসিদ নম্বর: ${data.receipt_no}</p><p>তারিখ: ${data.issued_date}</p><p>সদস্য: ${m.full_name||""} (নং ${m.member_no||""})</p><p>মোবাইল: ${m.phone||"—"}</p><p>জমার মাস: ${d.deposit_month||""}</p><p>জমার ধরন: ${d.note||""}</p><h3>প্রাপ্ত টাকা: ${money(d.amount)}</h3><p>গ্রহণকারীর স্বাক্ষর: __________________</p><button class="no-print" onclick="window.print()">রসিদ প্রিন্ট করুন</button></div>`}
+$("findReceipt").onclick=()=>{let no=$("receiptSearch").value.trim();if(no)showReceipt(no)};
+$("saveRefund").onclick=async()=>{let row={member_id:$("refundMember").value,amount:Number($("refundAmount").value),refund_date:$("refundDate").value,note:$("refundNote").value.trim()||null,created_by:currentUser?.id};if(!row.member_id||row.amount<=0||!row.refund_date)return msg("refundMsg","সদস্য, পরিমাণ ও তারিখ পূরণ করুন");if(!confirm("এই টাকা সত্যিই সদস্যকে ফেরত দেওয়া হয়েছে?"))return;let {error}=await db.from("member_refunds").insert(row);if(error)msg("refundMsg",error.message);else{msg("refundMsg","ফেরত সংরক্ষণ হয়েছে",true);await loadRefunds()}};
+async function loadRefunds(){let {data,error}=await db.from("member_refunds").select("amount,refund_date,note,members(full_name,member_no)").order("refund_date",{ascending:false});if(error)return $("refunds").textContent=error.message;$("refunds").innerHTML="";(data||[]).forEach(x=>{let p=document.createElement("p");p.className="item";p.textContent=`${x.members?.full_name||"সদস্য"} (নং ${x.members?.member_no||""}) | ${money(x.amount)} | ${x.refund_date} | ${x.note||""}`;$("refunds").append(p)})}
+$("loadRefunds").onclick=loadRefunds;
+$("logout").onclick=async()=>{await db.auth.signOut();location.reload()};
+</script>
 </body>
 </html>
