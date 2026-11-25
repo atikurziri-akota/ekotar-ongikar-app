@@ -687,7 +687,7 @@ historyButton.addEventListener("click", async function() {
 
   const { data, error } = await supabaseClient
     .from("deposits")
-    .select("id, amount, deposit_month, deposit_date, note")
+    .select("id, amount, deposit_month, deposit_date, note, member_id")
     .eq("member_id", memberId)
     .order("deposit_month", { ascending: false });
 
@@ -704,17 +704,148 @@ historyButton.addEventListener("click", async function() {
     return;
   }
 
-  data.forEach(function(deposit) {
-    const item = document.createElement("p");
+  
+data.forEach(function(deposit) {
+  const item = document.createElement("div");
 
-    item.textContent =
-      "মাস: " + deposit.deposit_month +
-      " | টাকা: ৳" + deposit.amount +
-      " | জমার তারিখ: " + deposit.deposit_date +
-      " | ধরন: " + (deposit.note || "নেই");
+  item.style.borderBottom = "1px solid #ddd";
+  item.style.padding = "12px 0";
 
-    depositHistory.appendChild(item);
+  const details = document.createElement("p");
+  details.textContent =
+    "মাস: " + deposit.deposit_month +
+    " | টাকা: ৳" + deposit.amount +
+    " | জমার তারিখ: " + deposit.deposit_date +
+    " | ধরন: " + (deposit.note || "নেই");
+
+  item.appendChild(details);
+
+  const editButton = document.createElement("button");
+  editButton.textContent = "সংশোধন করুন";
+
+  editButton.addEventListener("click", async function() {
+    const newAmountText = prompt(
+      "নতুন জমার পরিমাণ লিখুন:",
+      deposit.amount
+    );
+    if (newAmountText === null) return;
+
+    const newAmount = Number(newAmountText);
+    if (!Number.isFinite(newAmount) || newAmount <= 0) {
+      alert("সঠিক টাকার পরিমাণ লিখুন।");
+      return;
+    }
+
+    const newMonthText = prompt(
+      "নতুন জমার মাস লিখুন (যেমন: 2026-06):",
+      deposit.deposit_month.slice(0, 7)
+    );
+    if (newMonthText === null) return;
+
+    if (!/^\d{4}-\d{2}$/.test(newMonthText)) {
+      alert("মাসটি YYYY-MM নিয়মে লিখুন।");
+      return;
+    }
+
+    const monthParts = newMonthText.split("-");
+    const monthNumber = Number(monthParts[1]);
+
+    if (monthNumber < 1 || monthNumber > 12) {
+      alert("সঠিক মাস লিখুন।");
+      return;
+    }
+
+    const newMemberNoText = prompt(
+      "সদস্য পরিবর্তন করতে নতুন সদস্য নম্বর লিখুন। পরিবর্তন না করলে ফাঁকা রাখুন:"
+    );
+    if (newMemberNoText === null) return;
+
+    let newMemberId = deposit.member_id;
+
+    if (newMemberNoText.trim() !== "") {
+      const newMemberNo = Number(newMemberNoText);
+
+      if (!Number.isInteger(newMemberNo) || newMemberNo <= 0) {
+        alert("সঠিক সদস্য নম্বর লিখুন।");
+        return;
+      }
+
+      const { data: foundMember, error: memberError } =
+        await supabaseClient
+          .from("members")
+          .select("id")
+          .eq("member_no", newMemberNo)
+          .single();
+
+      if (memberError || !foundMember) {
+        alert("এই সদস্য নম্বর পাওয়া যায়নি।");
+        return;
+      }
+
+      newMemberId = foundMember.id;
+    }
+
+    const newMonth = newMonthText + "-01";
+
+    if (!confirm("জমার তথ্য সংশোধন করতে চান?")) return;
+
+    const { data: authData, error: authError } =
+      await supabaseClient.auth.getUser();
+
+    if (authError || !authData.user) {
+      alert("Admin পরিচয় পাওয়া যায়নি। আবার Login করুন।");
+      return;
+    }
+
+    const { data: historyRow, error: historyError } =
+      await supabaseClient
+        .from("deposit_edit_history")
+        .insert([{
+          deposit_id: deposit.id,
+          old_amount: deposit.amount,
+          new_amount: newAmount,
+          old_month: deposit.deposit_month,
+          new_month: newMonth,
+          old_member_id: deposit.member_id,
+          new_member_id: newMemberId,
+          changed_by: authData.user.id
+        }])
+        .select("id")
+        .single();
+
+    if (historyError) {
+      alert("পরিবর্তনের ইতিহাস সংরক্ষণ হয়নি: " + historyError.message);
+      return;
+    }
+
+    const { error: updateError } = await supabaseClient
+      .from("deposits")
+      .update({
+        amount: newAmount,
+        deposit_month: newMonth,
+        member_id: newMemberId
+      })
+      .eq("id", deposit.id);
+
+    if (updateError) {
+      await supabaseClient
+        .from("deposit_edit_history")
+        .delete()
+        .eq("id", historyRow.id);
+
+      alert("জমা সংশোধন হয়নি: " + updateError.message);
+      return;
+    }
+
+    alert("জমার তথ্য সংশোধন হয়েছে।");
+    await historyButton.click();
+    await loadDashboard();
   });
+
+  item.appendChild(editButton);
+  depositHistory.appendChild(item);
+});
+
 });
     document.getElementById("logoutButton")
       .addEventListener("click", async function() {
