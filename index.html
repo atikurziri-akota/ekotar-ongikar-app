@@ -88,6 +88,18 @@ table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{pad
  <section><h3>সদস্যের টাকা ফেরত</h3><div class="row">
   <div><label>সদস্য</label><select id="refundMember"></select></div><div><label>ফেরতের পরিমাণ</label><input id="refundAmount" type="number" min="1"></div><div><label>ফেরতের তারিখ</label><input id="refundDate" type="date"></div>
  </div><label>নোট</label><input id="refundNote"><button id="saveRefund" class="danger">ফেরত সংরক্ষণ</button><p id="refundMsg"></p><button id="loadRefunds" class="secondary">ফেরতের তালিকা</button><div id="refunds"></div></section>
+ <section><h3>ডাটা এক্সপোর্ট (Excel-এ খোলা যাবে)</h3>
+ <p class="muted">প্রতিটি তালিকা CSV ফাইলে ডাউনলোড হবে। Excel-এ খুলে প্রয়োজনমতো সংরক্ষণ করতে পারবে।</p>
+ <div class="row">
+  <button id="exportMembers" class="secondary">সদস্য তালিকা ডাউনলোড</button>
+  <button id="exportDeposits" class="secondary">জমার তালিকা ডাউনলোড</button>
+  <button id="exportReceipts" class="secondary">রসিদের তালিকা ডাউনলোড</button>
+  <button id="exportShares" class="secondary">শেয়ার ইতিহাস ডাউনলোড</button>
+  <button id="exportFines" class="secondary">জরিমানার তালিকা ডাউনলোড</button>
+  <button id="exportExpenses" class="secondary">খরচের তালিকা ডাউনলোড</button>
+  <button id="exportRefunds" class="secondary">ফেরতের তালিকা ডাউনলোড</button>
+  <button id="exportAudit" class="secondary">পরিবর্তনের ইতিহাস ডাউনলোড</button>
+ </div><p id="exportMsg" class="muted"></p></section>
  <section><h3>অ্যাডমিন পরিবর্তনের ইতিহাস</h3><button id="loadAudit" class="secondary">ইতিহাস দেখুন / রিফ্রেশ</button><div id="audit"></div></section>
  <button id="logout" class="danger">লগআউট</button>
 </main>
@@ -149,7 +161,7 @@ $("loginBtn").onclick=async()=>{
   else{const code=$("memberCode").value.trim().toUpperCase();if(!/^[A-Z0-9-]{4,30}$/.test(code))throw Error("সঠিক ইউনিক আইডি লিখুন");email=`${code.toLowerCase()}@members.ekota.invalid`}
   const {data,error}=await db.auth.signInWithPassword({email,password});if(error)throw error;
   currentUser=data.user;
-  if($("loginType").value==="admin"){await adminCheck(data.user);$("loginCard").classList.add("hidden");$("app").classList.remove("hidden");await refreshAll();await $("loadDues").onclick();await $("loadSlipSubmissions").onclick()}
+  if($("loginType").value==="admin"){await adminCheck(data.user);$("loginCard").classList.add("hidden");$("app").classList.remove("hidden");await refreshAll();await $("loadDues").onclick();await $("loadSlipSubmissions").onclick();await $("loadFines").onclick();await $("loadExpenses").onclick();await $("loadRefunds").onclick();await $("loadAudit").onclick()}
   else{const {data:profile,error:pe}=await db.from("members").select("id,member_no,member_code,full_name,phone,status,monthly_share,join_date,nominee_name,address,user_id").eq("user_id",data.user.id).maybeSingle();if(pe||!profile)throw Error("এই লগইনের সঙ্গে সদস্যের তথ্য পাওয়া যায়নি");if(profile.status!=="active")throw Error("আপনার সদস্যপদ বর্তমানে Active নয়");$("loginCard").classList.add("hidden");$("memberApp").classList.remove("hidden");await loadMemberDashboard(profile);await loadMyMonth();await loadMySlips(profile.id)}
  }catch(e){await db.auth.signOut();currentUser=null;msg("loginMsg","লগইন হয়নি: "+(e.message||"সমস্যা হয়েছে"))}
  $("loginBtn").disabled=false;
@@ -453,6 +465,50 @@ $("loadSlipSubmissions").onclick=async()=>{
   $("slipSubmissions").append(d);
  }
 };
+
+// Excel-compatible CSV export. Data is fetched in pages to avoid Supabase row limits.
+async function fetchAllRows(table,columns,orderColumn){
+ const pageSize=500;let from=0,all=[];
+ while(true){
+  let q=db.from(table).select(columns).range(from,from+pageSize-1);
+  if(orderColumn)q=q.order(orderColumn,{ascending:true});
+  const {data,error}=await q;if(error)throw error;
+  all=all.concat(data||[]);if(!data||data.length<pageSize)break;from+=pageSize;
+ }
+ return all;
+}
+function csvCell(value){
+ let v=value===null||value===undefined?"":String(value);
+ if(/^[=+@\-]/.test(v))v="'"+v;
+ return '"'+v.replace(/"/g,'""')+'"';
+}
+function downloadCSV(filename,headers,rows){
+ const csv='\uFEFF'+[headers,...rows.map(row=>headers.map(h=>row[h]??""))].map(r=>r.map(csvCell).join(',')).join('\r\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
+}
+async function exportData(kind){
+ const btn=$("export"+kind[0].toUpperCase()+kind.slice(1));btn.disabled=true;msg("exportMsg","ডাটা প্রস্তুত হচ্ছে...");
+ try{
+  const configs={
+   members:{table:"members",cols:"member_no,member_code,full_name,phone,identity_number,monthly_share,nominee_name,nominee_identity,address,join_date,status",order:"member_no",headers:["সদস্য নম্বর","ইউনিক আইডি","নাম","মোবাইল","NID/পাসপোর্ট","শেয়ার","নমিনির নাম","নমিনির NID","ঠিকানা","যোগদানের তারিখ","স্ট্যাটাস"],keys:["member_no","member_code","full_name","phone","identity_number","monthly_share","nominee_name","nominee_identity","address","join_date","status"]},
+   deposits:{table:"deposits",cols:"member_id,amount,deposit_month,deposit_date,deposit_type,note",order:"deposit_month",headers:["সদস্য ID","টাকা","জমার মাস","জমার তারিখ","ধরন","নোট"],keys:["member_id","amount","deposit_month","deposit_date","deposit_type","note"]},
+   receipts:{table:"receipts",cols:"receipt_no,deposit_id,issued_date,created_at",order:"issued_date",headers:["রসিদ নম্বর","জমার রেকর্ড ID","ইস্যুর তারিখ","তৈরির সময়"],keys:["receipt_no","deposit_id","issued_date","created_at"]},
+   shares:{table:"member_share_history",cols:"member_id,effective_from,share_count",order:"effective_from",headers:["সদস্য ID","কার্যকর হওয়ার তারিখ","শেয়ার সংখ্যা"],keys:["member_id","effective_from","share_count"]},
+   fines:{table:"fines",cols:"member_id,amount,reason,fine_date,paid,paid_at",order:"fine_date",headers:["সদস্য ID","টাকা","কারণ","তারিখ","পরিশোধিত","পরিশোধের তারিখ"],keys:["member_id","amount","reason","fine_date","paid","paid_at"]},
+   expenses:{table:"expenses",cols:"title,category,amount,expense_date,note",order:"expense_date",headers:["বিবরণ","খাত","টাকা","তারিখ","নোট"],keys:["title","category","amount","expense_date","note"]},
+   refunds:{table:"member_refunds",cols:"member_id,amount,refund_date,note,created_by,created_at",order:"refund_date",headers:["সদস্য ID","ফেরতের টাকা","তারিখ","নোট","তৈরি করেছেন","তৈরির সময়"],keys:["member_id","amount","refund_date","note","created_by","created_at"]},
+   audit:{table:"audit_logs",cols:"actor_id,table_name,record_id,action,old_data,new_data,created_at",order:"created_at",headers:["অ্যাডমিন ID","টেবিল","রেকর্ড ID","কাজ","আগের তথ্য","নতুন তথ্য","সময়"],keys:["actor_id","table_name","record_id","action","old_data","new_data","created_at"]}
+  };
+  const c=configs[kind],data=await fetchAllRows(c.table,c.cols,c.order);
+  const rows=data.map(x=>Object.fromEntries(c.keys.map((k,i)=>[c.headers[i],(k==="old_data"||k==="new_data")?JSON.stringify(x[k]??""):x[k]])));
+  downloadCSV(`ekotar_${kind}_${today()}.csv`,c.headers,rows);
+  msg("exportMsg",`${data.length}টি রেকর্ড ডাউনলোড হয়েছে।`,true);
+ }catch(e){msg("exportMsg","ডাউনলোড হয়নি: "+(e.message||"সমস্যা হয়েছে"))}
+ btn.disabled=false;
+}
+["members","deposits","receipts","shares","fines","expenses","refunds","audit"].forEach(k=>$("export"+k[0].toUpperCase()+k.slice(1)).onclick=()=>exportData(k));
+
 async function logout(){await db.auth.signOut();location.reload()}
 $("logout").onclick=logout;$("memberLogout").onclick=logout;
 </script>
