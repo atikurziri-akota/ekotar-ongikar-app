@@ -12,7 +12,7 @@ label{display:block;margin:11px 0 5px;font-size:14px}input,select,textarea{width
 button{padding:10px 13px;margin:6px 4px 6px 0;border:0;border-radius:8px;background:#087f5b;color:#fff;font-weight:bold;cursor:pointer}
 button.secondary{background:#52657a}button.danger{background:#b42318}button:disabled{opacity:.55;cursor:not-allowed}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.stat,.panel{background:#f3f6fb;padding:13px;border-radius:10px;margin:9px 0}
-section{border-top:1px solid #e1e7ef;padding-top:14px;margin-top:18px}.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+section{border-top:1px solid #e1e7ef;padding-top:14px;margin-top:18px}details.fold-section{border:1px solid #dce5ee;border-radius:12px;padding:12px;margin:14px 0;background:#fff}details.fold-section>summary{cursor:pointer;list-style:none;font-weight:bold;color:#087f5b;background:#eef8f4;padding:13px;border-radius:9px}details.fold-section>summary::-webkit-details-marker{display:none}details.fold-section>summary:after{content:"＋";float:right}details.fold-section[open]>summary:after{content:"−"}details.fold-section[open]>summary{margin-bottom:12px}.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
 .item{border-bottom:1px solid #e1e7ef;padding:10px 0;overflow-wrap:anywhere}.muted{color:#68778a;font-size:13px}.ok{color:#087f5b}.err{color:#b42318}.hidden{display:none!important}
 table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{padding:8px;border:1px solid #dce3ec;text-align:left}th{background:#edf3f7}
 .actions{display:flex;gap:5px;flex-wrap:wrap}.actions button{margin:4px 3px 4px 0}.tabs{display:flex;gap:8px;flex-wrap:wrap}
@@ -53,7 +53,7 @@ table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{pad
   <div><label>বর্তমান ঠিকানা</label><input id="mAddress"></div>
   <div><label>যোগদানের তারিখ</label><input id="mJoin" type="date" value="2025-09-01"></div>
  </div><button id="addMember">সদস্য যোগ করুন</button><p id="memberMsg"></p>
- <h3>সদস্য তালিকা</h3><button id="reloadMembers" class="secondary">তালিকা রিফ্রেশ</button><div id="members"></div>
+ <details class="fold-section"><summary>সদস্য তালিকা খুলুন</summary><button id="reloadMembers" class="secondary">তালিকা রিফ্রেশ</button><div id="members"></div></details>
 
  <div class="panel"><h3>সদস্যের লগইন তৈরি</h3><p class="muted">সদস্যের ইউনিক আইডি ও কমপক্ষে ৮ অক্ষরের পাসওয়ার্ড দিন। সদস্যকে পাসওয়ার্ডটি নিরাপদে জানিয়ে দিন।</p>
   <label>সদস্য নির্বাচন</label><select id="createLoginMember"></select>
@@ -74,7 +74,7 @@ table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{pad
  </div><p id="depCalc" class="muted"></p><button id="saveDeposit">জমা সংরক্ষণ ও রসিদ তৈরি</button><p id="depMsg"></p>
  <h3>জমার ইতিহাস</h3><label>সদস্য নির্বাচন</label><select id="historyMember"></select><button id="showHistory" class="secondary">জমার হিসাব দেখুন</button><div id="history"></div></section>
 
- <section><h3>সদস্যভিত্তিক জমা, বকেয়া ও অগ্রিম</h3><label>হিসাবের মাস নির্বাচন</label><input id="duesMonth" type="month"><button id="loadDues" class="secondary">নির্বাচিত মাসের হিসাব দেখুন</button><p class="muted">নির্বাচিত মাসের শেষ তারিখ পর্যন্ত জমা, ফেরত, শেয়ার ইতিহাস, নির্ধারিত টাকা, বকেয়া ও অগ্রিম দেখাবে। হিসাব শুরু ১ সেপ্টেম্বর ২০২৫।</p><div id="dues"></div></section>
+ <section><details class="fold-section"><summary>নির্বাচিত মাসের হিসাব খুলুন</summary><label>হিসাবের মাস নির্বাচন</label><input id="duesMonth" type="month"><button id="loadDues" class="secondary">নির্বাচিত মাসের হিসাব দেখুন</button><p class="muted">নির্বাচিত মাসের শেষ তারিখ পর্যন্ত জমা, ফেরত, শেয়ার ইতিহাস, নির্ধারিত টাকা, বকেয়া ও অগ্রিম দেখাবে। হিসাব শুরু ১ সেপ্টেম্বর ২০২৫।</p><div id="dues"></div></details></section>
  <section><h3>সদস্যদের জমার স্লিপ যাচাই</h3><button id="loadSlipSubmissions" class="secondary">স্লিপের তালিকা দেখুন</button><div id="slipSubmissions"></div></section>
   <section><h3>অগ্রিম সমন্বয়</h3><p class="muted">আগের মাসের সব জমা ও ফেরত চূড়ান্ত করার পরই এই কাজ করবে। অগ্রিম আগে মাসিক জমায়, তারপর ডিসেম্বরের অতিরিক্ত জমায় সমন্বয় হবে। একই মাসে একবারই চালাবে।</p><label>সমন্বয়ের মাস</label><input id="adjustmentMonth" type="month" value="2026-12"><button id="applyAdvance" class="secondary">অগ্রিম সমন্বয় করুন</button><p id="adjustmentMsg"></p><div id="adjustmentResult"></div></section>
 
@@ -106,7 +106,7 @@ table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{pad
   <button id="exportRefunds" class="secondary">ফেরতের তালিকা ডাউনলোড</button>
   <button id="exportAudit" class="secondary">পরিবর্তনের ইতিহাস ডাউনলোড</button>
  </div><p id="exportMsg" class="muted"></p></section>
- <section><h3>অ্যাডমিন পরিবর্তনের ইতিহাস</h3><button id="loadAudit" class="secondary">ইতিহাস দেখুন / রিফ্রেশ</button><div id="audit"></div></section>
+ <section><details class="fold-section"><summary>অ্যাডমিন ইতিহাস খুলুন</summary><button id="loadAudit" class="secondary">ইতিহাস দেখুন / রিফ্রেশ</button><div id="audit"></div></details></section>
  <button id="logout" class="danger">লগআউট</button>
 </main>
 
@@ -155,6 +155,7 @@ $("fineDate").value=today();$("expenseDate").value=today();$("refundDate").value
 function msg(id,text,ok=false){$(id).textContent=text;$(id).className=ok?"ok":"err"}
 function safeText(tag,text){const el=document.createElement(tag);el.textContent=text??"";return el}
 function actionButton(parent,label,cls,fn){const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;b.onclick=fn;parent.appendChild(b);return b}
+function printElementAsPdf(elementId,title){const source=$(elementId);if(!source||!source.innerHTML.trim())return alert("আগে হিসাবটি দেখুন, তারপর PDF তৈরি করুন।");const w=window.open("","_blank");if(!w)return alert("PDF তৈরির জন্য পপ-আপ অনুমতি দিন।");w.document.open();w.document.write(`<!DOCTYPE html><html lang="bn"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Arial,sans-serif;color:#172b4d;padding:22px}h2{text-align:center;color:#087f5b}table{width:100%;border-collapse:collapse;margin-top:14px;font-size:11px}th,td{border:1px solid #bcc8d4;padding:6px;text-align:left}th{background:#edf3f7}.panel{padding:10px;background:#f3f6fb;margin:8px 0}button{display:none!important}@page{size:A4 landscape;margin:12mm}</style></head><body><h2>একতার অঙ্গীকার — ৫০ জনের এক পরিবার</h2><h3 style="text-align:center">${title}</h3>${source.innerHTML}</body></html>`);w.document.close();w.focus();setTimeout(()=>{w.print();},500)}
 function addOpt(id,rows){const sel=$(id);sel.innerHTML='<option value="">সদস্য নির্বাচন করুন</option>';rows.forEach(m=>{const o=document.createElement("option");o.value=m.id;o.textContent=`${m.member_code||"আইডি নেই"} — ${m.full_name} (নং ${m.member_no})`;sel.appendChild(o)})}
 async function adminCheck(user){const {data,error}=await db.from("user_roles").select("role").eq("user_id",user.id).maybeSingle();if(error||data?.role!=="admin")throw Error("অ্যাডমিন অনুমতি পাওয়া যায়নি।")}
 $("loginType").onchange=()=>{const a=$("loginType").value==="admin";$("adminLoginFields").classList.toggle("hidden",!a);$("memberLoginFields").classList.toggle("hidden",a)};
@@ -347,6 +348,7 @@ $("loadDues").onclick=async()=>{
  box.append(safeText("p",`মোট মাসিক জমা: ${money(tm)} | ডিসেম্বরের অতিরিক্ত জমা: ${money(ts)}`));
  box.append(safeText("p",`মোট জমা: ${money(td)} | মোট ফেরত: ${money(trf)}`));
  box.append(safeText("p",`মোট নির্ধারিত: ${money(tDue)} | মোট বকেয়া: ${money(tArr)} | মোট অগ্রিম: ${money(tAdv)}`));
+ actionButton(box,"PDF ডাউনলোড / প্রিন্ট","no-print",()=>printElementAsPdf("dues",`${month} মাসের সদস্যভিত্তিক হিসাব`));
  $("dues").append(box,table);
 };
 $("applyAdvance").onclick=async()=>{
