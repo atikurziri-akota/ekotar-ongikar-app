@@ -38,6 +38,16 @@ table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{pad
  </div>
 </main>
 
+<main class="card login hidden" id="forcedPasswordCard">
+ <div class="logo">🔐</div><h2>প্রথমবারের পাসওয়ার্ড পরিবর্তন</h2>
+ <p>নিরাপত্তার জন্য ড্যাশবোর্ডে যাওয়ার আগে নতুন পাসওয়ার্ড সেট করুন। কমপক্ষে ৮ অক্ষর দিন।</p>
+ <label>নতুন পাসওয়ার্ড</label><input id="forcedNewPassword" type="password" autocomplete="new-password" minlength="8">
+ <label>নতুন পাসওয়ার্ড আবার লিখুন</label><input id="forcedConfirmPassword" type="password" autocomplete="new-password" minlength="8">
+ <button id="forcedSavePassword">নতুন পাসওয়ার্ড সংরক্ষণ করুন</button>
+ <p id="forcedPasswordMsg" role="status"></p>
+ <button id="forcedLogout" class="secondary">লগআউট</button>
+</main>
+
 <main id="app" class="hidden">
  <h1>অ্যাডমিন ড্যাশবোর্ড</h1><p style="text-align:center">একতার অঙ্গীকার — ৫০ জনের এক পরিবার</p><p class="muted" style="text-align:center">অ্যাডমিন/সদস্য ড্যাশবোর্ড — সংশোধিত সংস্করণ ২৭-১১-২০২৬</p>
  <div class="grid">
@@ -70,6 +80,12 @@ table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{pad
   <button id="bulkCreateLoginsBtn" class="secondary">বাকি Active সদস্যদের লগইন তৈরি করুন</button>
   <p id="bulkLoginMsg" role="status"></p>
   <div id="bulkLoginResults"></div>
+  <hr>
+  <h3>সদস্যের পাসওয়ার্ড Reset</h3>
+  <p class="muted">পাসওয়ার্ড ভুলে গেলে সদস্য নির্বাচন করে নতুন অস্থায়ী পাসওয়ার্ড দিন। পরের লগইনে সদস্যকে আবার পাসওয়ার্ড পরিবর্তন করতে হবে।</p>
+  <label>সদস্য নির্বাচন</label><select id="resetLoginMember"></select>
+  <label>নতুন অস্থায়ী পাসওয়ার্ড (কমপক্ষে ৮ অক্ষর)</label><input id="resetLoginPassword" type="password" minlength="8" autocomplete="new-password">
+  <button id="resetLoginBtn" class="secondary">পাসওয়ার্ড Reset করুন</button><p id="resetLoginMsg" role="status"></p>
  </div></section>
 
  <section><h3>জমা গ্রহণ</h3><div class="row">
@@ -147,6 +163,16 @@ table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{pad
  <button id="toggleDepositHistory" class="secondary">জমার ইতিহাস দেখুন</button>
  <section id="memberDepositHistory" class="hidden"><h3>অনুমোদিত জমার ইতিহাস</h3><div id="memberHistoryList"></div></section>
  <div class="notice"><b>নোটিশ:</b> প্রতি মাসের ১৫ তারিখের মধ্যে নির্ধারিত টাকা জমা দিন।</div>
+ <section>
+  <button id="toggleMemberPasswordPanel" class="secondary">নিজের পাসওয়ার্ড পরিবর্তন</button>
+  <div id="memberPasswordPanel" class="panel hidden">
+   <h3>পাসওয়ার্ড পরিবর্তন</h3>
+   <label>বর্তমান পাসওয়ার্ড</label><input id="memberCurrentPassword" type="password" autocomplete="current-password">
+   <label>নতুন পাসওয়ার্ড</label><input id="memberNewPassword" type="password" minlength="8" autocomplete="new-password">
+   <label>নতুন পাসওয়ার্ড আবার লিখুন</label><input id="memberConfirmPassword" type="password" minlength="8" autocomplete="new-password">
+   <button id="memberChangePasswordBtn">পাসওয়ার্ড পরিবর্তন করুন</button><p id="memberPasswordMsg" role="status"></p>
+  </div>
+ </section>
  <button id="memberLogout" class="danger">লগআউট</button>
 </main>
 
@@ -168,6 +194,17 @@ function printElementAsPdf(elementId,title){const source=$(elementId);if(!source
 function addOpt(id,rows){const sel=$(id);sel.innerHTML='<option value="">সদস্য নির্বাচন করুন</option>';rows.forEach(m=>{const o=document.createElement("option");o.value=m.id;o.textContent=`${m.member_code||"আইডি নেই"} — ${m.full_name} (নং ${m.member_no})`;sel.appendChild(o)})}
 async function adminCheck(user){const {data,error}=await db.from("user_roles").select("role").eq("user_id",user.id).maybeSingle();if(error||data?.role!=="admin")throw Error("অ্যাডমিন অনুমতি পাওয়া যায়নি।")}
 $("loginType").onchange=()=>{const a=$("loginType").value==="admin";$("adminLoginFields").classList.toggle("hidden",!a);$("memberLoginFields").classList.toggle("hidden",a)};
+async function showMemberDashboard(user){
+ const {data:profile,error:pe}=await db.from("members").select("id,member_no,member_code,full_name,phone,status,monthly_share,join_date,nominee_name,address,user_id").eq("user_id",user.id).maybeSingle();
+ if(pe||!profile)throw Error("এই লগইনের সঙ্গে সদস্যের তথ্য পাওয়া যায়নি");
+ if(profile.status!=="active")throw Error("আপনার সদস্যপদ বর্তমানে Active নয়");
+ currentUser=user;
+ $("loginCard").classList.add("hidden");
+ $("forcedPasswordCard").classList.add("hidden");
+ $("memberApp").classList.remove("hidden");
+ await loadMemberDashboard(profile);await loadMyMonth();await loadMySlips(profile.id);
+}
+let pendingPasswordUser=null;
 $("loginBtn").onclick=async()=>{
  msg("loginMsg","");$("loginBtn").disabled=true;
  try{
@@ -178,16 +215,39 @@ $("loginBtn").onclick=async()=>{
   const {data,error}=await db.auth.signInWithPassword({email,password});if(error)throw error;
   currentUser=data.user;
   if($("loginType").value==="admin"){await adminCheck(data.user);$("loginCard").classList.add("hidden");$("app").classList.remove("hidden");await refreshAll();await $("loadDues").onclick();await $("loadSlipSubmissions").onclick();await $("loadFines").onclick();await $("loadExpenses").onclick();await $("loadRefunds").onclick();await $("loadAudit").onclick()}
-  else{const {data:profile,error:pe}=await db.from("members").select("id,member_no,member_code,full_name,phone,status,monthly_share,join_date,nominee_name,address,user_id").eq("user_id",data.user.id).maybeSingle();if(pe||!profile)throw Error("এই লগইনের সঙ্গে সদস্যের তথ্য পাওয়া যায়নি");if(profile.status!=="active")throw Error("আপনার সদস্যপদ বর্তমানে Active নয়");$("loginCard").classList.add("hidden");$("memberApp").classList.remove("hidden");await loadMemberDashboard(profile);await loadMyMonth();await loadMySlips(profile.id)}
- }catch(e){await db.auth.signOut();currentUser=null;msg("loginMsg","লগইন হয়নি: "+(e.message||"সমস্যা হয়েছে"))}
+  else if(data.user.app_metadata?.must_change_password===true){
+   pendingPasswordUser=data.user;
+   $("loginCard").classList.add("hidden");$("forcedPasswordCard").classList.remove("hidden");
+   $("forcedNewPassword").value="";$("forcedConfirmPassword").value="";
+   msg("forcedPasswordMsg","নতুন পাসওয়ার্ড সেট না করা পর্যন্ত ড্যাশবোর্ড খোলা যাবে না।",true);
+  }else{await showMemberDashboard(data.user)}
+ }catch(e){await db.auth.signOut();currentUser=null;pendingPasswordUser=null;msg("loginMsg","লগইন হয়নি: "+(e.message||"সমস্যা হয়েছে"))}
  $("loginBtn").disabled=false;
 };
+$("forcedSavePassword").onclick=async()=>{
+ const p=$("forcedNewPassword").value,c=$("forcedConfirmPassword").value,btn=$("forcedSavePassword");
+ if(!pendingPasswordUser)return msg("forcedPasswordMsg","সেশন পাওয়া যায়নি। আবার লগইন করুন।");
+ if(p.length<8)return msg("forcedPasswordMsg","পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।");
+ if(p!==c)return msg("forcedPasswordMsg","দুইটি পাসওয়ার্ড মিলছে না।");
+ btn.disabled=true;msg("forcedPasswordMsg","পাসওয়ার্ড পরিবর্তন হচ্ছে...");
+ try{
+  const {data,error}=await db.functions.invoke("member-login",{body:{action:"change_own_password",new_password:p}});
+  if(error)throw error;if(data?.error)throw Error(data.error);
+  const {data:refreshed,error:refreshError}=await db.auth.refreshSession();
+  if(refreshError)throw refreshError;
+  pendingPasswordUser=refreshed.user;
+  $("forcedNewPassword").value="";$("forcedConfirmPassword").value="";
+  await showMemberDashboard(refreshed.user);
+ }catch(e){msg("forcedPasswordMsg","পাসওয়ার্ড পরিবর্তন হয়নি: "+(e.message||"সমস্যা হয়েছে"))}
+ btn.disabled=false;
+};
+$("forcedLogout").onclick=async()=>{await db.auth.signOut();location.reload()};
 async function refreshAll(){await Promise.all([loadMembers(),loadStats()])}
 async function loadStats(){const [m,d,f,x]=await Promise.all([db.from("members").select("id",{count:"exact",head:true}),db.from("deposits").select("amount"),db.from("fines").select("amount"),db.from("expenses").select("amount")]);const er=m.error||d.error||f.error||x.error;if(er){console.error(er);return}$("statMembers").textContent=m.count||0;$("statDeposits").textContent=money((d.data||[]).reduce((s,r)=>s+Number(r.amount),0));$("statFines").textContent=money((f.data||[]).reduce((s,r)=>s+Number(r.amount),0));$("statExpenses").textContent=money((x.data||[]).reduce((s,r)=>s+Number(r.amount),0))}
 async function loadMembers(){
  const {data,error}=await db.from("members").select("id,member_no,member_code,full_name,phone,status,monthly_share,nominee_name,join_date,identity_number,nominee_identity,address,user_id").order("member_no");
  if(error){msg("memberMsg",error.message);return}members=data||[];const active=members.filter(m=>m.status==="active");
- ["depMember","fineMember","refundMember","createLoginMember"].forEach(id=>addOpt(id,active));addOpt("historyMember",members);$("members").innerHTML="";
+ ["depMember","fineMember","refundMember","createLoginMember","resetLoginMember"].forEach(id=>addOpt(id,active));addOpt("historyMember",members);$("members").innerHTML="";
  members.forEach(m=>{const d=document.createElement("div");d.className="item";const p=safeText("p",`আইডি: ${m.member_code||"নেই"} | ${m.full_name} | মোবাইল: ${m.phone||"নেই"} | শেয়ার: ${m.monthly_share} | লগইন: ${m.user_id?"তৈরি আছে":"তৈরি হয়নি"} | ${m.status==="active"?"Active":"Inactive"}`);d.append(p);
  actionButton(d,"সম্পাদনা","",async()=>{
   const no=prompt("সদস্য নম্বর",m.member_no);if(no===null)return;
@@ -226,6 +286,20 @@ $("addMember").onclick=async()=>{
  ["mNo","mName","mPhone","mIdentity","mNominee","mNomineeIdentity","mAddress"].forEach(id=>$(id).value="");$("mShare").value=1;await refreshAll();
 };
 $("createLoginBtn").onclick=async()=>{const m=members.find(x=>x.id===$("createLoginMember").value),password=$("createLoginPassword").value;if(!m)return msg("createLoginMsg","প্রথমে সদস্য নির্বাচন করুন");if(!m.member_code)return msg("createLoginMsg","এই সদস্যের ইউনিক আইডি নেই");if(m.user_id)return msg("createLoginMsg","এই সদস্যের লগইন ইতিমধ্যে তৈরি আছে");if(password.length<8)return msg("createLoginMsg","পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে");$("createLoginBtn").disabled=true;msg("createLoginMsg","লগইন তৈরি হচ্ছে...");try{const {data,error}=await db.functions.invoke("member-login",{body:{member_code:m.member_code,password}});if(error)throw error;if(data?.error)throw Error(data.error);msg("createLoginMsg",`সফল! ${m.member_code} সদস্যের লগইন তৈরি হয়েছে।`,true);$("createLoginPassword").value="";await loadMembers()}catch(e){msg("createLoginMsg","লগইন তৈরি হয়নি: "+(e.message||"সমস্যা হয়েছে"))}$("createLoginBtn").disabled=false};
+$("resetLoginBtn").onclick=async()=>{
+ const m=members.find(x=>x.id===$("resetLoginMember").value),password=$("resetLoginPassword").value,btn=$("resetLoginBtn");
+ if(!m)return msg("resetLoginMsg","প্রথমে সদস্য নির্বাচন করুন");
+ if(!m.user_id)return msg("resetLoginMsg","এই সদস্যের লগইন এখনো তৈরি হয়নি।");
+ if(password.length<8)return msg("resetLoginMsg","পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।");
+ if(!confirm(`${m.member_code} — ${m.full_name} সদস্যের পাসওয়ার্ড Reset করবেন? পরের লগইনে তাকে নতুন পাসওয়ার্ড সেট করতে হবে।`))return;
+ btn.disabled=true;msg("resetLoginMsg","পাসওয়ার্ড Reset হচ্ছে...");
+ try{
+  const {data,error}=await db.functions.invoke("member-login",{body:{action:"reset_password",member_code:m.member_code,password}});
+  if(error)throw error;if(data?.error)throw Error(data.error);
+  $("resetLoginPassword").value="";msg("resetLoginMsg",`${m.member_code} সদস্যের পাসওয়ার্ড Reset হয়েছে। নতুন অস্থায়ী পাসওয়ার্ডটি নিরাপদে জানিয়ে দিন।`,true);
+ }catch(e){msg("resetLoginMsg","Reset হয়নি: "+(e.message||"সমস্যা হয়েছে"))}
+ btn.disabled=false;
+};
 function makeTemporaryPassword(){
  const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
  const bytes=new Uint8Array(18);crypto.getRandomValues(bytes);
@@ -486,6 +560,27 @@ async function loadMemberBalanceNotices(memberId){
  addNotice("জরিমানা",fine);
 }
 let currentMemberProfile=null;
+$("toggleMemberPasswordPanel").onclick=()=>{$("memberPasswordPanel").classList.toggle("hidden");$("memberPasswordMsg").textContent="";};
+$("memberChangePasswordBtn").onclick=async()=>{
+ const old=$("memberCurrentPassword").value,p=$("memberNewPassword").value,c=$("memberConfirmPassword").value,btn=$("memberChangePasswordBtn");
+ if(!currentMemberProfile?.member_code)return msg("memberPasswordMsg","সদস্যের তথ্য পাওয়া যায়নি।");
+ if(!old)return msg("memberPasswordMsg","বর্তমান পাসওয়ার্ড লিখুন।");
+ if(p.length<8)return msg("memberPasswordMsg","নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।");
+ if(p!==c)return msg("memberPasswordMsg","নতুন পাসওয়ার্ড দুটি মিলছে না।");
+ if(p===old)return msg("memberPasswordMsg","নতুন পাসওয়ার্ডটি বর্তমান পাসওয়ার্ডের থেকে আলাদা দিন।");
+ btn.disabled=true;msg("memberPasswordMsg","বর্তমান পাসওয়ার্ড যাচাই হচ্ছে...");
+ try{
+  const email=`${currentMemberProfile.member_code.toLowerCase()}@members.ekota.invalid`;
+  const {error:verifyError}=await db.auth.signInWithPassword({email,password:old});
+  if(verifyError)throw Error("বর্তমান পাসওয়ার্ড সঠিক নয়।");
+  const {data,error}=await db.functions.invoke("member-login",{body:{action:"change_own_password",new_password:p}});
+  if(error)throw error;if(data?.error)throw Error(data.error);
+  $("memberCurrentPassword").value="";$("memberNewPassword").value="";$("memberConfirmPassword").value="";
+  msg("memberPasswordMsg","পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে।",true);
+  await db.auth.refreshSession();
+ }catch(e){msg("memberPasswordMsg","পাসওয়ার্ড পরিবর্তন হয়নি: "+(e.message||"সমস্যা হয়েছে"))}
+ btn.disabled=false;
+};
 function renderMemberDepositHistory(rows){
  const box=$("memberHistoryList");box.innerHTML="";
  if(!rows.length){box.textContent="এখনও কোনো জমা অনুমোদিত হয়নি।";return}
