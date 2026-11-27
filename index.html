@@ -132,7 +132,7 @@ table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{pad
    <label>নোট (ঐচ্ছিক)</label><input id="slipNote">
    <button id="uploadSlip">স্লিপ জমা দিন</button><p id="slipMsg"></p><div id="mySlipList"></div>
   </section>
-  <section><h3>আমার জমার ইতিহাস</h3><div id="myDepositList"></div></section>
+  <section><h3>সর্বশেষ অনুমোদিত জমা</h3><div id="myLatestDeposit" class="panel">তথ্য লোড হচ্ছে...</div></section>
  <section><h3>আমার অগ্রিম সমন্বয়ের ইতিহাস</h3><div id="myAdjustmentList"></div></section>
  <section><h3>আমার জরিমানা</h3><div id="myFineList"></div></section>
  <section><h3>আমার রসিদ</h3><div id="myReceiptList"></div></section>
@@ -460,7 +460,10 @@ async function loadMemberDashboard(profile){
  $("mySpecialPaid").textContent=money(a.special_paid);
  $("myRefundTotal").textContent=money(a.total_refunded);
  $("myFineDue").textContent=money(fines.filter(x=>!x.paid).reduce((s,x)=>s+Number(x.amount),0));
- $("myDepositList").innerHTML="";deposits.forEach(x=>$("myDepositList").append(safeText("div",`${x.deposit_month} | ${x.deposit_type==="monthly"?"মাসিক মূল জমা":"ডিসেম্বরের অতিরিক্ত জমা"} | ${money(x.amount)} | ${x.note||""} | জমার তারিখ: ${x.deposit_date||"—"}`)));
+ const latest=deposits.slice().sort((a,b)=>String(b.deposit_month||"").localeCompare(String(a.deposit_month||"")))[0];
+ $("myLatestDeposit").textContent=latest
+  ? `${latest.deposit_month?.slice(0,7)||"—"} | ${latest.deposit_type==="monthly"?"মাসিক মূল জমা":"ডিসেম্বরের অতিরিক্ত জমা"} | ${money(latest.amount)} | জমার তারিখ: ${latest.deposit_date||"—"}`
+  : "এখনও কোনো জমা অনুমোদিত হয়নি।";
  $("myAdjustmentList").innerHTML="";
  (adjustments.data||[]).forEach(x=>$("myAdjustmentList").append(safeText("div",`${x.adjustment_month} | ${x.adjustment_type==="monthly"?"মাসিক মূল জমা":"ডিসেম্বরের অতিরিক্ত জমা"} | ${money(x.amount)} | ${x.note||"অগ্রিম সমন্বয়"}`)));
  if(!(adjustments.data||[]).length)$("myAdjustmentList").textContent="এখনও কোনো অগ্রিম সমন্বয় হয়নি।";
@@ -498,12 +501,20 @@ $("uploadSlip").onclick=async()=>{
  if(!(/^image\//.test(file.type)||file.type==="application/pdf"))return msg("slipMsg","শুধু ছবি বা PDF আপলোড করা যাবে");
  const {data:profile,error:pe}=await db.from("members").select("id").eq("user_id",currentUser.id).single();
  if(pe||!profile)return msg("slipMsg","সদস্যের তথ্য পাওয়া যায়নি");
+ const billDate=month+"-01";
+ const [paidCheck,pendingCheck]=await Promise.all([
+  db.from("deposits").select("id").eq("member_id",profile.id).eq("deposit_month",billDate).eq("deposit_type",type).limit(1),
+  db.from("deposit_slip_submissions").select("id").eq("member_id",profile.id).eq("deposit_month",billDate).eq("deposit_type",type).eq("status","pending").limit(1)
+ ]);
+ if(paidCheck.error||pendingCheck.error)return msg("slipMsg","আগের জমার তথ্য যাচাই করা যায়নি: "+(paidCheck.error||pendingCheck.error).message);
+ if(paidCheck.data?.length)return msg("slipMsg","এই মাস ও জমার ধরন ইতিমধ্যে অনুমোদিত হয়েছে। আবার স্লিপ দেওয়া যাবে না।");
+ if(pendingCheck.data?.length)return msg("slipMsg","এই মাস ও জমার ধরনটির একটি স্লিপ ইতিমধ্যে যাচাইয়ের অপেক্ষায় আছে।");
  $("uploadSlip").disabled=true;msg("slipMsg","স্লিপ আপলোড হচ্ছে...");
  try{
   const path=`${profile.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`;
   const {error:ue}=await db.storage.from("deposit-slips").upload(path,file,{upsert:false,contentType:file.type});
   if(ue)throw ue;
-  const {error:ie}=await db.from("deposit_slip_submissions").insert({member_id:profile.id,deposit_month:month+"-01",deposit_type:type,amount,file_path:path,note:$("slipNote").value.trim()||null,status:"pending"});
+  const {error:ie}=await db.from("deposit_slip_submissions").insert({member_id:profile.id,deposit_month:billDate,deposit_type:type,amount,file_path:path,note:$("slipNote").value.trim()||null,status:"pending"});
   if(ie){await db.storage.from("deposit-slips").remove([path]);throw ie}
   msg("slipMsg","স্লিপ জমা হয়েছে। অ্যাডমিন যাচাইয়ের পর জমা হিসাবে যুক্ত হবে।",true);
   $("slipFile").value="";$("slipNote").value="";await loadMySlips(profile.id);
