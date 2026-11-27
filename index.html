@@ -58,7 +58,13 @@ table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{pad
  <div class="panel"><h3>সদস্যের লগইন তৈরি</h3><p class="muted">সদস্যের ইউনিক আইডি ও কমপক্ষে ৮ অক্ষরের পাসওয়ার্ড দিন। সদস্যকে পাসওয়ার্ডটি নিরাপদে জানিয়ে দিন।</p>
   <label>সদস্য নির্বাচন</label><select id="createLoginMember"></select>
   <label>নতুন পাসওয়ার্ড</label><input id="createLoginPassword" type="password" minlength="8" autocomplete="new-password">
-  <button id="createLoginBtn">লগইন তৈরি করুন</button><p id="createLoginMsg"></p>
+  <button id="createLoginBtn">নির্বাচিত সদস্যের লগইন তৈরি করুন</button><p id="createLoginMsg"></p>
+  <hr>
+  <h3>সব সদস্যের লগইন একসঙ্গে তৈরি</h3>
+  <p class="muted">যেসব Active সদস্যের লগইন এখনো তৈরি হয়নি, তাদের জন্য সিস্টেম আলাদা শক্তিশালী অস্থায়ী পাসওয়ার্ড তৈরি করবে। সফল হলে আইডি ও পাসওয়ার্ডের তালিকা CSV ফাইলে ডাউনলোড হবে। আগে থেকে লগইন থাকা সদস্য বাদ থাকবে।</p>
+  <button id="bulkCreateLoginsBtn" class="secondary">বাকি Active সদস্যদের লগইন তৈরি করুন</button>
+  <p id="bulkLoginMsg" role="status"></p>
+  <div id="bulkLoginResults"></div>
  </div></section>
 
  <section><h3>জমা গ্রহণ</h3><div class="row">
@@ -210,6 +216,41 @@ $("addMember").onclick=async()=>{
  ["mNo","mName","mPhone","mIdentity","mNominee","mNomineeIdentity","mAddress"].forEach(id=>$(id).value="");$("mShare").value=1;await refreshAll();
 };
 $("createLoginBtn").onclick=async()=>{const m=members.find(x=>x.id===$("createLoginMember").value),password=$("createLoginPassword").value;if(!m)return msg("createLoginMsg","প্রথমে সদস্য নির্বাচন করুন");if(!m.member_code)return msg("createLoginMsg","এই সদস্যের ইউনিক আইডি নেই");if(m.user_id)return msg("createLoginMsg","এই সদস্যের লগইন ইতিমধ্যে তৈরি আছে");if(password.length<8)return msg("createLoginMsg","পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে");$("createLoginBtn").disabled=true;msg("createLoginMsg","লগইন তৈরি হচ্ছে...");try{const {data,error}=await db.functions.invoke("member-login",{body:{member_code:m.member_code,password}});if(error)throw error;if(data?.error)throw Error(data.error);msg("createLoginMsg",`সফল! ${m.member_code} সদস্যের লগইন তৈরি হয়েছে।`,true);$("createLoginPassword").value="";await loadMembers()}catch(e){msg("createLoginMsg","লগইন তৈরি হয়নি: "+(e.message||"সমস্যা হয়েছে"))}$("createLoginBtn").disabled=false};
+function makeTemporaryPassword(){
+ const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+ const bytes=new Uint8Array(18);crypto.getRandomValues(bytes);
+ return Array.from(bytes,b=>alphabet[b%alphabet.length]).join("");
+}
+function downloadLoginCredentials(rows){
+ const headers=["সদস্য আইডি","সদস্যের নাম","অস্থায়ী পাসওয়ার্ড"];
+ const csv="\uFEFF"+[headers,...rows.map(r=>[r.member_code,r.full_name,r.password])]
+  .map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
+ const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download=`ekotar_member_login_credentials_${today()}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+$("bulkCreateLoginsBtn").onclick=async()=>{
+ const pending=members.filter(m=>m.status==="active"&&!m.user_id);
+ if(!pending.length)return msg("bulkLoginMsg","সব Active সদস্যের লগইন ইতিমধ্যে তৈরি আছে।",true);
+ const withoutCode=pending.filter(m=>!m.member_code);
+ if(withoutCode.length)return msg("bulkLoginMsg",`${withoutCode.length} জন সদস্যের ইউনিক আইডি নেই। আগে তাদের আইডি ঠিক করুন।`);
+ if(!confirm(`${pending.length} জন Active সদস্যের লগইন তৈরি হবে। প্রত্যেকের জন্য আলাদা অস্থায়ী পাসওয়ার্ড বানানো হবে। এগোবেন?`))return;
+ const btn=$("bulkCreateLoginsBtn");btn.disabled=true;$("bulkLoginResults").textContent="";
+ const created=[],failed=[];
+ for(let i=0;i<pending.length;i++){
+  const m=pending[i],password=makeTemporaryPassword();
+  msg("bulkLoginMsg",`লগইন তৈরি হচ্ছে: ${i+1}/${pending.length} — ${m.member_code}`);
+  try{
+   const {data,error}=await db.functions.invoke("member-login",{body:{member_code:m.member_code,password}});
+   if(error)throw error;if(data?.error)throw Error(data.error);
+   created.push({member_code:m.member_code,full_name:m.full_name,password});
+  }catch(e){failed.push({member_code:m.member_code,full_name:m.full_name,error:e.message||"অজানা সমস্যা"});}
+ }
+ if(created.length){downloadLoginCredentials(created);const p=safeText("p",`${created.length} জনের লগইন তৈরি হয়েছে। আইডি ও অস্থায়ী পাসওয়ার্ডের CSV ফাইল ডাউনলোড হয়েছে। ফাইলটি নিরাপদে রাখুন এবং প্রত্যেক সদস্যকে শুধু তার নিজের তথ্য দিন।`);p.className="ok";$("bulkLoginResults").append(p)}
+ if(failed.length){const p=safeText("p",`${failed.length} জনের লগইন তৈরি হয়নি: `+failed.map(x=>`${x.member_code} (${x.error})`).join("; "));p.className="err";$("bulkLoginResults").append(p)}
+ if(created.length&&!failed.length)msg("bulkLoginMsg","সব বাকি Active সদস্যের লগইন সফলভাবে তৈরি হয়েছে।",true);
+ else msg("bulkLoginMsg",`সফল: ${created.length} জন | ব্যর্থ: ${failed.length} জন`,created.length>0);
+ await loadMembers();btn.disabled=false;
+};
 let amountRequest=0;
 async function applicableShare(member,month){
  const {data,error}=await db.from("member_share_history").select("effective_from,share_count").eq("member_id",member.id).lte("effective_from",monthEndDate(month)).order("effective_from",{ascending:true});
