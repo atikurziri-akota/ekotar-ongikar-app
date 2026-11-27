@@ -528,17 +528,24 @@ async function loadMySlips(memberId){
 }
 $("loadSlipSubmissions").onclick=async()=>{
  $("slipSubmissions").textContent="স্লিপ লোড হচ্ছে...";
- const {data,error}=await db.from("deposit_slip_submissions").select("id,member_id,deposit_month,deposit_type,amount,file_path,note,status,created_at,members(full_name,member_code)").eq("status","pending").order("created_at");
+ const {data,error}=await db.from("deposit_slip_submissions").select("id,member_id,deposit_month,deposit_type,amount,file_path,note,status,deposit_date,created_at,members(full_name,member_code)").eq("status","pending").order("created_at");
  if(error)return $("slipSubmissions").textContent="স্লিপ লোড হয়নি: "+error.message;
  $("slipSubmissions").innerHTML="";
  if(!data?.length){$("slipSubmissions").textContent="যাচাইয়ের অপেক্ষায় কোনো স্লিপ নেই।";return}
  for(const x of data){
   const d=document.createElement("div");d.className="item";
   d.append(safeText("p",`${x.members?.member_code||""} — ${x.members?.full_name||"সদস্য"} | ${x.deposit_month} | ${x.deposit_type==="monthly"?"মাসিক":"ডিসেম্বরের অতিরিক্ত"} | ${money(x.amount)} | ${x.note||""}`));
+  const dateLabel=safeText("label","ব্যাংকে টাকা জমার তারিখ যাচাই/নির্ধারণ করুন");
+  const dateInput=document.createElement("input");dateInput.type="date";dateInput.value=x.deposit_date||today();dateInput.required=true;dateInput.setAttribute("aria-label","ব্যাংকে টাকা জমার তারিখ");
+  dateLabel.append(dateInput);d.append(dateLabel);
   const {data:link,error:le}=await db.storage.from("deposit-slips").createSignedUrl(x.file_path,300);
   if(!le&&link?.signedUrl){const a=document.createElement("a");a.href=link.signedUrl;a.target="_blank";a.rel="noopener";a.textContent="স্লিপ দেখুন (৫ মিনিট)";d.append(a)}
   actionButton(d,"অনুমোদন করুন","",async()=>{
-   if(!confirm("স্লিপ যাচাই করেছেন এবং জমা অনুমোদন করবেন?"))return;
+   const depositDate=dateInput.value;
+   if(!depositDate)return alert("ব্যাংকে টাকা জমার তারিখ নির্বাচন করুন।");
+   if(!confirm(`স্লিপ যাচাই করেছেন? জমার তারিখ: ${depositDate}। অনুমোদন করবেন?`))return;
+   const {error:de}=await db.from("deposit_slip_submissions").update({deposit_date:depositDate}).eq("id",x.id).eq("status","pending");
+   if(de)return alert("তারিখ সংরক্ষণ হয়নি: "+de.message);
    const {data:res,error:ae}=await db.rpc("approve_deposit_slip",{p_slip_id:x.id});
    if(ae)return alert("অনুমোদন হয়নি: "+ae.message);
    alert("স্লিপ অনুমোদিত হয়েছে। রসিদ: "+(res?.receipt_no||"তৈরি"));
