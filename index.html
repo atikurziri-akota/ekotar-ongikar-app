@@ -34,7 +34,7 @@ table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{pad
 </main>
 
 <main id="app" class="hidden">
- <h1>অ্যাডমিন ড্যাশবোর্ড</h1><p style="text-align:center">একতার অঙ্গীকার — ৫০ জনের এক পরিবার</p>
+ <h1>অ্যাডমিন ড্যাশবোর্ড</h1><p style="text-align:center">একতার অঙ্গীকার — ৫০ জনের এক পরিবার</p><p class="muted" style="text-align:center">অ্যাডমিন/সদস্য ড্যাশবোর্ড — সংশোধিত সংস্করণ ২৭-১১-২০২৬</p>
  <div class="grid">
   <div class="stat">মোট সদস্য: <b id="statMembers">০</b></div>
   <div class="stat">মোট জমা: <b id="statDeposits">৳০</b></div>
@@ -182,9 +182,9 @@ async function loadMembers(){
   const share=Number(prompt("শেয়ার সংখ্যা",m.monthly_share));if(!Number.isInteger(share)||share<1)return alert("সঠিক শেয়ার লিখুন");
   let effectiveFrom=null;
   if(share!==Number(m.monthly_share)){
-   effectiveFrom=prompt("নতুন শেয়ার কার্যকর হওয়ার তারিখ (YYYY-MM-DD)। পুরোনো হিসাব অপরিবর্তিত থাকবে।",today());if(effectiveFrom===null)return;
-   if(!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)||Number.isNaN(Date.parse(effectiveFrom)))return alert("কার্যকর হওয়ার সঠিক তারিখ দিন");
-   if(m.join_date&&effectiveFrom<m.join_date)return alert("শেয়ার কার্যকর হওয়ার তারিখ যোগদানের তারিখের আগে হতে পারবে না");
+   effectiveFrom=prompt("নতুন শেয়ার কার্যকর হওয়ার তারিখ (YYYY-MM-01)। মাসের প্রথম দিন দিতে হবে, যাতে পুরো মাসের হিসাব একই নিয়মে হয়।",monthAdd(today().slice(0,7),1)+"-01");if(effectiveFrom===null)return;
+   if(!/^\d{4}-\d{2}-01$/.test(effectiveFrom)||Number.isNaN(Date.parse(effectiveFrom)))return alert("শেয়ার পরিবর্তনের কার্যকর তারিখ মাসের প্রথম দিন হতে হবে (যেমন 2026-12-01)");
+   if(m.join_date&&effectiveFrom<m.join_date.slice(0,7)+"-01")return alert("শেয়ার কার্যকর হওয়ার মাস যোগদানের মাসের আগে হতে পারবে না");
   }
   const nominee=prompt("নমিনির নাম",m.nominee_name||"");if(nominee===null)return;
   const nomineeIdentity=prompt("নমিনির NID",m.nominee_identity||"");if(nomineeIdentity===null)return;
@@ -210,9 +210,44 @@ $("addMember").onclick=async()=>{
  ["mNo","mName","mPhone","mIdentity","mNominee","mNomineeIdentity","mAddress"].forEach(id=>$(id).value="");$("mShare").value=1;await refreshAll();
 };
 $("createLoginBtn").onclick=async()=>{const m=members.find(x=>x.id===$("createLoginMember").value),password=$("createLoginPassword").value;if(!m)return msg("createLoginMsg","প্রথমে সদস্য নির্বাচন করুন");if(!m.member_code)return msg("createLoginMsg","এই সদস্যের ইউনিক আইডি নেই");if(m.user_id)return msg("createLoginMsg","এই সদস্যের লগইন ইতিমধ্যে তৈরি আছে");if(password.length<8)return msg("createLoginMsg","পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে");$("createLoginBtn").disabled=true;msg("createLoginMsg","লগইন তৈরি হচ্ছে...");try{const {data,error}=await db.functions.invoke("member-login",{body:{member_code:m.member_code,password}});if(error)throw error;if(data?.error)throw Error(data.error);msg("createLoginMsg",`সফল! ${m.member_code} সদস্যের লগইন তৈরি হয়েছে।`,true);$("createLoginPassword").value="";await loadMembers()}catch(e){msg("createLoginMsg","লগইন তৈরি হয়নি: "+(e.message||"সমস্যা হয়েছে"))}$("createLoginBtn").disabled=false};
-function updateAmount(){const m=members.find(x=>x.id===$("depMember").value),month=$("depMonth").value,type=$("depType").value;$("depAmount").value="";$("depCalc").textContent="";if(!m||!month)return;if(type==="december_special"&&!month.endsWith("-12")){$("depCalc").textContent="অতিরিক্ত জমা শুধু ডিসেম্বর মাসে";return}const unit=type==="monthly"?2000:6000,total=unit*Number(m.monthly_share);$("depAmount").value=total;$("depCalc").textContent=`${m.monthly_share} শেয়ার × ${money(unit)} = ${money(total)}`}
+let amountRequest=0;
+async function applicableShare(member,month){
+ const {data,error}=await db.from("member_share_history").select("effective_from,share_count").eq("member_id",member.id).lte("effective_from",monthEndDate(month)).order("effective_from",{ascending:true});
+ if(error)throw error;
+ const share=sharesForMonth(data||[],member.monthly_share,month);
+ if(!Number.isInteger(share)||share<1)throw Error("এই মাসের কার্যকর শেয়ার ইতিহাস পাওয়া যায়নি। আগে সদস্যের শেয়ার ইতিহাস ঠিক করুন।");
+ return share;
+}
+async function updateAmount(){
+ const request=++amountRequest,m=members.find(x=>x.id===$("depMember").value),month=$("depMonth").value,type=$("depType").value;
+ $("depAmount").value="";$("depCalc").textContent="";
+ if(!m||!month)return;
+ if(type==="december_special"&&!month.endsWith("-12")){$("depCalc").textContent="অতিরিক্ত জমা শুধু ডিসেম্বর মাসে";return}
+ $("depCalc").textContent="সেই মাসের কার্যকর শেয়ার যাচাই হচ্ছে...";
+ try{
+  const share=await applicableShare(m,month);if(request!==amountRequest)return;
+  if(!Number.isInteger(share)||share<1)throw Error("এই মাসের শেয়ার ইতিহাস পাওয়া যায়নি");
+  const unit=type==="monthly"?2000:6000,total=unit*share;
+  $("depAmount").value=total;$("depCalc").textContent=`${share} শেয়ার × ${money(unit)} = ${money(total)} (এই মাসে কার্যকর শেয়ার অনুযায়ী)`;
+ }catch(e){if(request===amountRequest)$("depCalc").textContent="শেয়ার যাচাই হয়নি: "+(e.message||"সমস্যা হয়েছে")}
+}
 ["depMember","depMonth","depType"].forEach(id=>$(id).onchange=updateAmount);
-$("saveDeposit").onclick=async()=>{const m=members.find(x=>x.id===$("depMember").value),month=$("depMonth").value,type=$("depType").value,amount=Number($("depAmount").value);if(!m||!month||!amount)return msg("depMsg","সদস্য, মাস ও ধরন নির্বাচন করুন");const monthDate=month+"-01",note=type==="monthly"?"মাসিক মূল জমা":"ডিসেম্বরের অতিরিক্ত জমা";const {data:old,error:ce}=await db.from("deposits").select("id").eq("member_id",m.id).eq("deposit_month",monthDate).eq("deposit_type",type).maybeSingle();if(ce)return msg("depMsg",ce.message);if(old)return msg("depMsg","এই ধরনের জমা এই মাসে আগে সংরক্ষিত হয়েছে");const {data:dep,error}=await db.from("deposits").insert({member_id:m.id,amount,deposit_month:monthDate,deposit_date:today(),deposit_type:type,note}).select("id").single();if(error)return msg("depMsg",error.message);const receiptNo="EA-"+Date.now();const {error:re}=await db.from("receipts").insert({deposit_id:dep.id,receipt_no:receiptNo,issued_date:today()});if(re){msg("depMsg","জমা হয়েছে, কিন্তু রসিদ তৈরি হয়নি: "+re.message);await loadStats();return}msg("depMsg","জমা ও রসিদ তৈরি হয়েছে: "+receiptNo,true);$("receiptSearch").value=receiptNo;await showReceipt(receiptNo);await loadStats()};
+$("saveDeposit").onclick=async()=>{
+ const m=members.find(x=>x.id===$("depMember").value),month=$("depMonth").value,type=$("depType").value;
+ if(!m||!month)return msg("depMsg","সদস্য ও জমার মাস নির্বাচন করুন");
+ if(type==="december_special"&&!month.endsWith("-12"))return msg("depMsg","ডিসেম্বরের অতিরিক্ত জমা শুধু ডিসেম্বর মাসে নেওয়া যাবে");
+ const monthDate=month+"-01";let amount;
+ try{const share=await applicableShare(m,month);if(!Number.isInteger(share)||share<1)throw Error("এই মাসের কার্যকর শেয়ার পাওয়া যায়নি");amount=share*(type==="monthly"?2000:6000)}catch(e){return msg("depMsg","জমা সংরক্ষণ হয়নি: "+(e.message||"শেয়ার যাচাই সমস্যা"))}
+ $("depAmount").value=amount;
+ const note=type==="monthly"?"মাসিক মূল জমা":"ডিসেম্বরের অতিরিক্ত জমা";
+ const {data:old,error:ce}=await db.from("deposits").select("id").eq("member_id",m.id).eq("deposit_month",monthDate).eq("deposit_type",type).maybeSingle();
+ if(ce)return msg("depMsg",ce.message);if(old)return msg("depMsg","এই ধরনের জমা এই মাসে আগে সংরক্ষিত হয়েছে");
+ const {data:dep,error}=await db.from("deposits").insert({member_id:m.id,amount,deposit_month:monthDate,deposit_date:today(),deposit_type:type,note}).select("id").single();
+ if(error)return msg("depMsg",error.message);
+ const receiptNo="EA-"+Date.now();const {error:re}=await db.from("receipts").insert({deposit_id:dep.id,receipt_no:receiptNo,issued_date:today()});
+ if(re){msg("depMsg","জমা হয়েছে, কিন্তু রসিদ তৈরি হয়নি: "+re.message);await loadStats();return}
+ msg("depMsg","জমা ও রসিদ তৈরি হয়েছে: "+receiptNo,true);$("receiptSearch").value=receiptNo;await showReceipt(receiptNo);await loadStats();
+};
 $("showHistory").onclick=async()=>{const id=$("historyMember").value;if(!id)return $("history").textContent="সদস্য নির্বাচন করুন";const {data,error}=await db.from("deposits").select("id,amount,deposit_month,deposit_date,deposit_type,note").eq("member_id",id).order("deposit_month",{ascending:false});if(error)return $("history").textContent=error.message;$("history").innerHTML="";(data||[]).forEach(r=>{const d=document.createElement("div");d.className="item";d.append(safeText("p",`${r.deposit_month} | ${money(r.amount)} | ${r.note||""} | জমার তারিখ: ${r.deposit_date||"—"}`));actionButton(d,"সম্পাদনা","",async()=>{const month=prompt("জমার মাস (YYYY-MM-DD; মাসের ১ তারিখ দিন)",r.deposit_month);if(month===null)return;if(!/^\d{4}-\d{2}-01$/.test(month))return alert("জমার মাসের তারিখ YYYY-MM-01 আকারে দিন");const amount=Number(prompt("জমার পরিমাণ",r.amount));if(!Number.isFinite(amount)||amount<=0)return alert("সঠিক পরিমাণ লিখুন");const note=prompt("জমার বিবরণ",r.note||"");if(note===null)return;const {data:duplicate,error:checkError}=await db.from("deposits").select("id").eq("member_id",id).eq("deposit_month",month).eq("deposit_type",r.deposit_type).neq("id",r.id).maybeSingle();if(checkError)return alert(checkError.message);if(duplicate)return alert("এই সদস্যের এই মাস ও ধরনের জমা আগে থেকেই আছে");const {error}=await db.from("deposits").update({deposit_month:month,amount,note:note.trim()||null}).eq("id",r.id);if(error)alert(error.message);else{await $("showHistory").onclick();await loadStats()}});actionButton(d,"ডিলিট","danger",async()=>{if(!confirm("জমা ও সংশ্লিষ্ট রসিদ মুছবেন?"))return;const {error:re}=await db.from("receipts").delete().eq("deposit_id",r.id);if(re)return alert(re.message);const {error}=await db.from("deposits").delete().eq("id",r.id);if(error)alert(error.message);else{await $("showHistory").onclick();await loadStats()}});$("history").append(d)})};
 function monthAdd(month,n=1){let [y,m]=month.split("-").map(Number);m+=n;while(m>12){y++;m-=12}return `${y}-${String(m).padStart(2,"0")}`}
 function monthEnd(month){const [y,m]=month.split("-").map(Number);return `${month}-${String(new Date(y,m,0).getDate()).padStart(2,"0")}`}
@@ -220,7 +255,7 @@ function monthEndDate(month){const [y,m]=month.split("-").map(Number);return `${
 function monthRange(start,end){const out=[];let m=start;while(m<=end){out.push(m);m=monthAdd(m,1)}return out}
 function sharesForMonth(history, fallback, month){
  const eligible=(history||[]).filter(x=>String(x.effective_from).slice(0,7)<=month).sort((a,b)=>String(a.effective_from).localeCompare(String(b.effective_from)));
- return eligible.length?Number(eligible[eligible.length-1].share_count||0):Number(fallback||0);
+ return eligible.length?Number(eligible[eligible.length-1].share_count||0):0;
 }
 function calculateMemberAsOf(member, deposits, refunds, shareHistory, month){
  const end=monthEndDate(month), join=String(member.join_date||"2025-09-01").slice(0,7);
@@ -338,7 +373,7 @@ $("makeReport").onclick=async()=>{
  const box=document.createElement("div");box.className="panel";
  box.append(safeText("b",`${month} মাসের সদস্যভিত্তিক রিপোর্ট`));
  box.append(safeText("p",`মাসিক জমা: ${money(monthly)} | ডিসেম্বরের অতিরিক্ত জমা: ${money(special)} | মোট জমা: ${money(monthly+special)}`));
- box.append(safeText("p",`বর্তমান মোট বকেয়া: ${money(arrears)} | বর্তমান মোট অগ্রিম: ${money(advance)}`));
+ box.append(safeText("p",`সর্বশেষ সারাংশ অনুযায়ী বর্তমান মোট বকেয়া: ${money(arrears)} | বর্তমান মোট অগ্রিম: ${money(advance)} (এগুলো নির্বাচিত রিপোর্ট মাসের শেষের হিসাব নয়)`));
  box.append(safeText("p",`জরিমানা আদায়: ${money(finePaid)} | খরচ: ${money(expense)} | সদস্য ফেরত: ${money(refund)}`));
  box.append(safeText("p",`নিট নগদ প্রবাহ: ${money(monthly+special+finePaid-expense-refund)}`));
  const print=actionButton(box,"রিপোর্ট প্রিন্ট করুন","no-print",()=>window.print());
@@ -485,7 +520,7 @@ function csvCell(value){
 function downloadCSV(filename,headers,rows){
  const csv='\uFEFF'+[headers,...rows.map(row=>headers.map(h=>row[h]??""))].map(r=>r.map(csvCell).join(',')).join('\r\n');
  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
- a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
+ a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 async function exportData(kind){
  const btn=$("export"+kind[0].toUpperCase()+kind.slice(1));btn.disabled=true;msg("exportMsg","ডাটা প্রস্তুত হচ্ছে...");
