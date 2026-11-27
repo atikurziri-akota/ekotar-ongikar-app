@@ -164,14 +164,7 @@ $("fineDate").value=today();$("expenseDate").value=today();$("refundDate").value
 function msg(id,text,ok=false){$(id).textContent=text;$(id).className=ok?"ok":"err"}
 function safeText(tag,text){const el=document.createElement(tag);el.textContent=text??"";return el}
 function actionButton(parent,label,cls,fn){const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;b.onclick=fn;parent.appendChild(b);return b}
-function printElementAsPdf(elementId,title){const source=$(elementId);if(!source||!source.innerHTML.trim())return alert("আগে হিসাবটি দেখুন, তারপর PDF তৈরি করুন।");const w=window.open("","_blank");if(!w)return alert("PDF তৈরির জন্য পপ-আপ অনুমতি দিন।");w.document.open();w.document.write(`<!DOCTYPE html><html lang="bn"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Arial,sans-serif;color:#172b4d;padding:22px}h2{text-align:center;color:#087f5b}table{width:100%;border-collapse:collapse;margin-top:14px;font-size:11px}th,td{border:1px solid #bcc8d4;padding:6px;text-align:left}th{background:#edf3f7}.panel{padding:10px;background:#f3f6fb;margin:8px 0}button{display:none!important}@page{size:A4 landscape;margin:12mm}</style></head><body><h2>একতার অঙ্গীকার — ৫০ জনের এক পরিবার</h2><h3 style="text-align:center">${title}</h3>${source.innerHTML}<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(err => console.error('Service worker registration failed:', err));
-  });
-}
-</script>
-</body></html>`);w.document.close();w.focus();setTimeout(()=>{w.print();},500)}
+function printElementAsPdf(elementId,title){const source=$(elementId);if(!source||!source.innerHTML.trim())return alert("আগে হিসাবটি দেখুন, তারপর PDF তৈরি করুন।");const w=window.open("","_blank");if(!w)return alert("PDF তৈরির জন্য পপ-আপ অনুমতি দিন।");w.document.open();w.document.write(`<!DOCTYPE html><html lang="bn"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Arial,sans-serif;color:#172b4d;padding:22px}h2{text-align:center;color:#087f5b}table{width:100%;border-collapse:collapse;margin-top:14px;font-size:11px}th,td{border:1px solid #bcc8d4;padding:6px;text-align:left}th{background:#edf3f7}.panel{padding:10px;background:#f3f6fb;margin:8px 0}button{display:none!important}@page{size:A4 landscape;margin:12mm}</style></head><body><h2>একতার অঙ্গীকার — ৫০ জনের এক পরিবার</h2><h3 style="text-align:center">${title}</h3>${source.innerHTML}</body></html>`);w.document.close();w.focus();setTimeout(()=>{w.print();},500)}
 function addOpt(id,rows){const sel=$(id);sel.innerHTML='<option value="">সদস্য নির্বাচন করুন</option>';rows.forEach(m=>{const o=document.createElement("option");o.value=m.id;o.textContent=`${m.member_code||"আইডি নেই"} — ${m.full_name} (নং ${m.member_no})`;sel.appendChild(o)})}
 async function adminCheck(user){const {data,error}=await db.from("user_roles").select("role").eq("user_id",user.id).maybeSingle();if(error||data?.role!=="admin")throw Error("অ্যাডমিন অনুমতি পাওয়া যায়নি।")}
 $("loginType").onchange=()=>{const a=$("loginType").value==="admin";$("adminLoginFields").classList.toggle("hidden",!a);$("memberLoginFields").classList.toggle("hidden",a)};
@@ -280,7 +273,7 @@ async function updateAmount(){
  const request=++amountRequest,m=members.find(x=>x.id===$("depMember").value),month=$("depMonth").value,type=$("depType").value;
  $("depAmount").value="";$("depCalc").textContent="";
  if(!m||!month)return;
- if(type==="december_special"&&!month.endsWith("-12")){$("depCalc").textContent="অতিরিক্ত জমা শুধু ডিসেম্বর মাসে";return}
+ if(type==="december_special"&&(!month.endsWith("-12")||month<"2026-12")){$("depCalc").textContent="ডিসেম্বরের অতিরিক্ত জমা ডিসেম্বর ২০২৬ থেকে চালু";return}
  $("depCalc").textContent="সেই মাসের কার্যকর শেয়ার যাচাই হচ্ছে...";
  try{
   const share=await applicableShare(m,month);if(request!==amountRequest)return;
@@ -293,7 +286,7 @@ async function updateAmount(){
 $("saveDeposit").onclick=async()=>{
  const m=members.find(x=>x.id===$("depMember").value),month=$("depMonth").value,type=$("depType").value;
  if(!m||!month)return msg("depMsg","সদস্য ও জমার মাস নির্বাচন করুন");
- if(type==="december_special"&&!month.endsWith("-12"))return msg("depMsg","ডিসেম্বরের অতিরিক্ত জমা শুধু ডিসেম্বর মাসে নেওয়া যাবে");
+ if(type==="december_special"&&(!month.endsWith("-12")||month<"2026-12"))return msg("depMsg","ডিসেম্বরের অতিরিক্ত জমা ডিসেম্বর ২০২৬ থেকে চালু");
  const monthDate=month+"-01";let amount;
  try{const share=await applicableShare(m,month);if(!Number.isInteger(share)||share<1)throw Error("এই মাসের কার্যকর শেয়ার পাওয়া যায়নি");amount=share*(type==="monthly"?2000:6000)}catch(e){return msg("depMsg","জমা সংরক্ষণ হয়নি: "+(e.message||"শেয়ার যাচাই সমস্যা"))}
  $("depAmount").value=amount;
@@ -539,7 +532,7 @@ $("loadMyMonth").onclick=loadMyMonth;
 $("uploadSlip").onclick=async()=>{
  const month=$("slipMonth").value,type=$("slipType").value,amount=Number($("slipAmount").value),file=$("slipFile").files[0],depositDate=$("slipDepositDate").value;
  if(!month||!depositDate||!amount||amount<=0||!file)return msg("slipMsg","বিলের মাস, ব্যাংকে জমার তারিখ ও স্লিপের ফাইল দিন");
- if(type==="december_special"&&!month.endsWith("-12"))return msg("slipMsg","ডিসেম্বর স্পেশাল শুধু ডিসেম্বর মাসে দেওয়া যাবে");
+ if(type==="december_special"&&(!month.endsWith("-12")||month<"2026-12"))return msg("slipMsg","ডিসেম্বর স্পেশাল ডিসেম্বর ২০২৬ থেকে চালু");
  if(type==="monthly"&&month.endsWith("-12")){/* ডিসেম্বরেও মাসিক বিল বৈধ */}
  if(file.size>5*1024*1024)return msg("slipMsg","ফাইল সর্বোচ্চ ৫ MB হতে পারবে");
  if(!(/^image\//.test(file.type)||file.type==="application/pdf"))return msg("slipMsg","শুধু ছবি বা PDF আপলোড করা যাবে");
@@ -652,6 +645,7 @@ async function exportData(kind){
 
 async function logout(){await db.auth.signOut();location.reload()}
 $("logout").onclick=logout;$("memberLogout").onclick=logout;
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(err=>console.error("PWA service worker:",err)));}
 </script>
 </body>
 </html>
