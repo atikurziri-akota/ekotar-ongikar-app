@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#087f5b">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
 <title>একতার অঙ্গীকার — সমিতি হিসাব</title>
 <style>
 *{box-sizing:border-box}body{margin:0;padding:14px;font-family:Arial,sans-serif;background:#f3f6fb;color:#172b4d}
@@ -161,7 +164,14 @@ $("fineDate").value=today();$("expenseDate").value=today();$("refundDate").value
 function msg(id,text,ok=false){$(id).textContent=text;$(id).className=ok?"ok":"err"}
 function safeText(tag,text){const el=document.createElement(tag);el.textContent=text??"";return el}
 function actionButton(parent,label,cls,fn){const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;b.onclick=fn;parent.appendChild(b);return b}
-function printElementAsPdf(elementId,title){const source=$(elementId);if(!source||!source.innerHTML.trim())return alert("আগে হিসাবটি দেখুন, তারপর PDF তৈরি করুন।");const w=window.open("","_blank");if(!w)return alert("PDF তৈরির জন্য পপ-আপ অনুমতি দিন।");w.document.open();w.document.write(`<!DOCTYPE html><html lang="bn"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Arial,sans-serif;color:#172b4d;padding:22px}h2{text-align:center;color:#087f5b}table{width:100%;border-collapse:collapse;margin-top:14px;font-size:11px}th,td{border:1px solid #bcc8d4;padding:6px;text-align:left}th{background:#edf3f7}.panel{padding:10px;background:#f3f6fb;margin:8px 0}button{display:none!important}@page{size:A4 landscape;margin:12mm}</style></head><body><h2>একতার অঙ্গীকার — ৫০ জনের এক পরিবার</h2><h3 style="text-align:center">${title}</h3>${source.innerHTML}</body></html>`);w.document.close();w.focus();setTimeout(()=>{w.print();},500)}
+function printElementAsPdf(elementId,title){const source=$(elementId);if(!source||!source.innerHTML.trim())return alert("আগে হিসাবটি দেখুন, তারপর PDF তৈরি করুন।");const w=window.open("","_blank");if(!w)return alert("PDF তৈরির জন্য পপ-আপ অনুমতি দিন।");w.document.open();w.document.write(`<!DOCTYPE html><html lang="bn"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Arial,sans-serif;color:#172b4d;padding:22px}h2{text-align:center;color:#087f5b}table{width:100%;border-collapse:collapse;margin-top:14px;font-size:11px}th,td{border:1px solid #bcc8d4;padding:6px;text-align:left}th{background:#edf3f7}.panel{padding:10px;background:#f3f6fb;margin:8px 0}button{display:none!important}@page{size:A4 landscape;margin:12mm}</style></head><body><h2>একতার অঙ্গীকার — ৫০ জনের এক পরিবার</h2><h3 style="text-align:center">${title}</h3>${source.innerHTML}<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => console.error('Service worker registration failed:', err));
+  });
+}
+</script>
+</body></html>`);w.document.close();w.focus();setTimeout(()=>{w.print();},500)}
 function addOpt(id,rows){const sel=$(id);sel.innerHTML='<option value="">সদস্য নির্বাচন করুন</option>';rows.forEach(m=>{const o=document.createElement("option");o.value=m.id;o.textContent=`${m.member_code||"আইডি নেই"} — ${m.full_name} (নং ${m.member_no})`;sel.appendChild(o)})}
 async function adminCheck(user){const {data,error}=await db.from("user_roles").select("role").eq("user_id",user.id).maybeSingle();if(error||data?.role!=="admin")throw Error("অ্যাডমিন অনুমতি পাওয়া যায়নি।")}
 $("loginType").onchange=()=>{const a=$("loginType").value==="admin";$("adminLoginFields").classList.toggle("hidden",!a);$("memberLoginFields").classList.toggle("hidden",a)};
