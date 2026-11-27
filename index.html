@@ -120,6 +120,7 @@ table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{pad
  <div class="panel member-profile"><h3 id="memberWelcome">স্বাগতম</h3><p id="memberProfile"></p></div>
  <div class="stat member-total">মোট জমার পরিমাণ: <b id="myDeposits">৳০</b></div>
  <div class="stat">সর্বশেষ পরিশোধিত মাস: <b id="myLatestMonth">এখনও কোনো মাস পরিশোধিত হয়নি</b></div>
+ <div id="memberBalanceNotices"></div>
  <button id="openPayBill" class="pay-button">Pay Bill</button>
  <section id="payBillPanel" class="hidden">
   <h3>জমার স্লিপ আপলোড</h3>
@@ -453,8 +454,33 @@ async function loadMemberDashboard(profile){
  $("myDeposits").textContent=money(deposits.reduce((sum,x)=>sum+Number(x.amount||0),0));
  const monthly=deposits.filter(x=>x.deposit_type==="monthly").sort((a,b)=>String(b.deposit_month||"").localeCompare(String(a.deposit_month||"")));
  $("myLatestMonth").textContent=monthly.length?(monthly[0].deposit_month||"").slice(0,7):"এখনও কোনো মাস পরিশোধিত হয়নি";
+ await loadMemberBalanceNotices(id);
  renderMemberDepositHistory(deposits);
  updateSlipAmount();
+}
+async function loadMemberBalanceNotices(memberId){
+ const box=$("memberBalanceNotices");
+ box.innerHTML="";
+ const [summaryResult,fineResult]=await Promise.all([
+  db.from("member_account_summary").select("total_due_balance,advance_balance").eq("member_id",memberId).maybeSingle(),
+  db.from("fines").select("amount").eq("member_id",memberId).eq("paid",false)
+ ]);
+ if(summaryResult.error)console.error("সদস্যের বকেয়া/অগ্রিম লোড হয়নি:",summaryResult.error);
+ if(fineResult.error)console.error("সদস্যের জরিমানা লোড হয়নি:",fineResult.error);
+ const summary=summaryResult.data||{};
+ const due=Math.max(0,Number(summary.total_due_balance||0));
+ const advance=Math.max(0,Number(summary.advance_balance||0));
+ const fine=(fineResult.data||[]).reduce((sum,row)=>sum+Number(row.amount||0),0);
+ const addNotice=(label,amount)=>{
+  if(amount<=0)return;
+  const item=document.createElement("div");
+  item.className="stat";
+  item.append(safeText("b",label+": "),safeText("strong",money(amount)));
+  box.append(item);
+ };
+ addNotice("বকেয়া",due);
+ addNotice("অগ্রিম",advance);
+ addNotice("জরিমানা",fine);
 }
 let currentMemberProfile=null;
 function renderMemberDepositHistory(rows){
