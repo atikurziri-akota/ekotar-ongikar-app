@@ -738,8 +738,29 @@ async function exportData(kind){
 }
 ["members","deposits","receipts","shares","fines","expenses","refunds","audit"].forEach(k=>$("export"+k[0].toUpperCase()+k.slice(1)).onclick=()=>exportData(k));
 
-async function logout(){await db.auth.signOut();location.reload()}
-$("logout").onclick=logout;$("memberLogout").onclick=logout;
+async function logout(){
+ const buttons=[$("logout"),$("memberLogout"),$("forcedLogout")].filter(Boolean);
+ buttons.forEach(b=>{b.disabled=true;b.dataset.oldText=b.textContent;b.textContent="লগআউট হচ্ছে...";});
+ let signOutError=null;
+ try{
+  const {error}=await db.auth.signOut({scope:"local"});
+  if(error)signOutError=error;
+ }catch(e){signOutError=e;}
+ // Always leave the protected dashboard view, even if the auth request reports an error.
+ currentUser=null;
+ if(typeof pendingPasswordUser!=="undefined")pendingPasswordUser=null;
+ if(typeof currentMemberProfile!=="undefined")currentMemberProfile=null;
+ ["app","memberApp","forcedPasswordCard"].forEach(id=>$(id)?.classList.add("hidden"));
+ $("loginCard")?.classList.remove("hidden");
+ ["password","forcedNewPassword","forcedConfirmPassword","memberCurrentPassword","memberNewPassword","memberConfirmPassword"].forEach(id=>{if($(id))$(id).value="";});
+ if(signOutError){
+  msg("loginMsg","লগআউটের সময় সমস্যা হয়েছে: "+(signOutError.message||"সেশন বন্ধ হয়েছে কি না নিশ্চিত হওয়া যায়নি। আবার চেষ্টা করুন।"));
+ }else{
+  msg("loginMsg","আপনি সফলভাবে লগআউট হয়েছেন।",true);
+ }
+ buttons.forEach(b=>{b.disabled=false;b.textContent=b.dataset.oldText||"লগআউট";delete b.dataset.oldText;});
+}
+$("logout").onclick=logout;$("memberLogout").onclick=logout;$("forcedLogout").onclick=logout;
 if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(err=>console.error("PWA service worker:",err)));}
 </script>
 </body>
