@@ -735,8 +735,10 @@ async function exportData(kind){
  }catch(e){msg("exportMsg","ডাউনলোড হয়নি: "+(e.message||"সমস্যা হয়েছে"))}
  btn.disabled=false;
 }
-["members","deposits","receipts","shares","fines","expenses","refunds","audit"].forEach(k=>$("export"+k[0].toUpperCase()+k.slice(1)).onclick=()=>exportData(k));
-
+["members","deposits","receipts","shares","fines","expenses","refunds","audit"].forEach(k=>{
+ const b=$("export"+k[0].toUpperCase()+k.slice(1));
+ if(b)b.onclick=()=>exportData(k);
+});
 async function logout(event){
  if(event){event.preventDefault();event.stopPropagation();}
  const buttons=[$("logout"),$("memberLogout"),$("forcedLogout")].filter(Boolean);
