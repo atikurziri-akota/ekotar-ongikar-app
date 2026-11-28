@@ -737,10 +737,11 @@ async function exportData(kind){
 }
  
 // Export buttons
-["members","deposits","receipts","shares","fines","expenses","refunds","audit"].forEach(k=>{
+ ["members","deposits","receipts","shares","fines","expenses","refunds","audit"].forEach(k=>{
  const b=$("export"+k[0].toUpperCase()+k.slice(1));
  if(b) b.onclick=()=>exportData(k);
 });
+async function logout(event){
 
 // Logout
 async function logout(event){
