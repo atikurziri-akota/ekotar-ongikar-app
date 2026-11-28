@@ -290,11 +290,14 @@ $("forcedSavePassword").onclick=async()=>{
  try{
   const {data,error}=await db.functions.invoke("member-login",{body:{action:"change_own_password",new_password:p}});
   if(error)throw error;if(data?.error)throw Error(data.error);
-  const {data:refreshed,error:refreshError}=await db.auth.refreshSession();
-  if(refreshError)throw refreshError;
-  pendingPasswordUser=refreshed.user;
+  // Password was updated server-side; establish a fresh session with the new password.
+  const loginEmail=pendingPasswordUser.email;
+  if(!loginEmail)throw Error("সদস্যের Login ID পাওয়া যায়নি। আবার লগইন করুন।");
+  const {data:loginData,error:loginError}=await db.auth.signInWithPassword({email:loginEmail,password:p});
+  if(loginError||!loginData?.user)throw loginError||Error("নতুন পাসওয়ার্ড দিয়ে Login Session তৈরি হয়নি।");
+  currentUser=loginData.user;pendingPasswordUser=null;
   $("forcedNewPassword").value="";$("forcedConfirmPassword").value="";
-  await showMemberDashboard(refreshed.user);
+  await showMemberDashboard(loginData.user);
  }catch(e){msg("forcedPasswordMsg","পাসওয়ার্ড পরিবর্তন হয়নি: "+(e.message||"সমস্যা হয়েছে"))}
  btn.disabled=false;
 };
@@ -670,9 +673,12 @@ $("memberChangePasswordBtn").onclick=async()=>{
   if(verifyError)throw Error("বর্তমান পাসওয়ার্ড সঠিক নয়।");
   const {data,error}=await db.functions.invoke("member-login",{body:{action:"change_own_password",new_password:p}});
   if(error)throw error;if(data?.error)throw Error(data.error);
+  // Re-authenticate using the new password instead of refreshing an invalid old token.
+  const {data:newLogin,error:newLoginError}=await db.auth.signInWithPassword({email,password:p});
+  if(newLoginError||!newLogin?.user)throw newLoginError||Error("নতুন পাসওয়ার্ড দিয়ে Login Session তৈরি হয়নি।");
+  currentUser=newLogin.user;
   $("memberCurrentPassword").value="";$("memberNewPassword").value="";$("memberConfirmPassword").value="";
-  msg("memberPasswordMsg","পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে।",true);
-  await db.auth.refreshSession();
+  msg("memberPasswordMsg","পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে এবং নতুন Session চালু হয়েছে।",true);
  }catch(e){msg("memberPasswordMsg","পাসওয়ার্ড পরিবর্তন হয়নি: "+(e.message||"সমস্যা হয়েছে"))}
  btn.disabled=false;
 };
