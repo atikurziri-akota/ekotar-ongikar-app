@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#07172f">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
-<title>একতার অঙ্গীকার — Navy & Gold Premium</title>
+<title>একতার অঙ্গীকার — Navy & Gold Premium | ২৮-১১-২০২৬ Fix 2</title>
 <style>
 *{box-sizing:border-box}body{margin:0;padding:14px;font-family:Arial,sans-serif;background:#f3f6fb;color:#172b4d}
 .card,#app{max-width:1000px;margin:16px auto;padding:20px;background:#fff;border-radius:16px;box-shadow:0 5px 24px #172b4d14}
@@ -159,6 +159,16 @@ table{border-collapse:separate;border-spacing:0;border-radius:12px;overflow:hidd
  <div class="stat member-total">মোট জমার পরিমাণ: <b id="myDeposits">৳০</b></div>
  <div class="stat">সর্বশেষ পরিশোধিত মাস: <b id="myLatestMonth">এখনও কোনো মাস পরিশোধিত হয়নি</b></div>
  <div id="memberBalanceNotices"></div>
+ <section class="member-profile">
+  <h3>নির্বাচিত মাসের ব্যক্তিগত হিসাব</h3>
+  <label>হিসাবের মাস</label><input id="myAccountMonth" type="month">
+  <button id="loadMyMonth" class="secondary" type="button">মাসের হিসাব দেখুন</button>
+  <div id="myMonthSummary"></div>
+ </section>
+ <section class="member-profile">
+  <h3>আমার জমার স্লিপের অবস্থা</h3>
+  <div id="mySlipList"></div>
+ </section>
  <button id="openPayBill" class="pay-button">Pay Bill</button>
  <section id="payBillPanel" class="hidden">
   <h3>জমার স্লিপ আপলোড</h3>
@@ -206,7 +216,7 @@ const $=id=>document.getElementById(id);
 const money=n=>"৳"+Number(n||0).toLocaleString("en-BD");
 let members=[],currentUser=null;
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
-$("fineDate").value=today();$("expenseDate").value=today();$("refundDate").value=today();$("reportMonth").value=today().slice(0,7);$("duesMonth").value=today().slice(0,7);$("slipMonth").value=today().slice(0,7);$("slipDepositDate").value=today();
+$("fineDate").value=today();$("expenseDate").value=today();$("refundDate").value=today();$("reportMonth").value=today().slice(0,7);$("duesMonth").value=today().slice(0,7);$("slipMonth").value=today().slice(0,7);$("myAccountMonth").value=today().slice(0,7);$("slipDepositDate").value=today();
 function msg(id,text,ok=false){$(id).textContent=text;$(id).className=ok?"ok":"err"}
 function safeText(tag,text){const el=document.createElement(tag);el.textContent=text??"";return el}
 function actionButton(parent,label,cls,fn){const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;b.onclick=fn;parent.appendChild(b);return b}
@@ -426,8 +436,10 @@ function monthEnd(month){const [y,m]=month.split("-").map(Number);return `${mont
 function monthEndDate(month){const [y,m]=month.split("-").map(Number);return `${month}-${String(new Date(y,m,0).getDate()).padStart(2,"0")}`}
 function monthRange(start,end){const out=[];let m=start;while(m<=end){out.push(m);m=monthAdd(m,1)}return out}
 function sharesForMonth(history, fallback, month){
- const eligible=(history||[]).filter(x=>String(x.effective_from).slice(0,7)<=month).sort((a,b)=>String(a.effective_from).localeCompare(String(b.effective_from)));
- return eligible.length?Number(eligible[eligible.length-1].share_count||0):0;
+ const all=history||[];
+ const eligible=all.filter(x=>String(x.effective_from).slice(0,7)<=month).sort((a,b)=>String(a.effective_from).localeCompare(String(b.effective_from)));
+ if(eligible.length)return Number(eligible[eligible.length-1].share_count||0);
+ return all.length?0:Number(fallback||0);
 }
 function calculateMemberAsOf(member, deposits, refunds, shareHistory, month){
  const end=monthEndDate(month), join=String(member.join_date||"2025-09-01").slice(0,7);
@@ -511,45 +523,56 @@ async function loadExpenses(){const {data,error}=await db.from("expenses").selec
 $("loadExpenses").onclick=loadExpenses;
 $("makeReport").onclick=async()=>{
  const month=$("reportMonth").value;if(!month)return;
- const start=month+"-01",end=monthAdd(month)+"-01";
- const [d,f,x,r,s]=await Promise.all([
-  db.from("deposits").select("member_id,amount,deposit_type,deposit_date,deposit_month,members(full_name,member_no,member_code,monthly_share)").gte("deposit_month",start).lt("deposit_month",end),
-  db.from("fines").select("amount,paid").gte("fine_date",start).lt("fine_date",end),
-  db.from("expenses").select("amount").gte("expense_date",start).lt("expense_date",end),
-  db.from("member_refunds").select("amount").gte("refund_date",start).lt("refund_date",end),
-  db.from("member_account_summary").select("member_id,total_due_balance,advance_balance")
+ const start=month+"-01",end=monthAdd(month)+"-01",asOf=monthEndDate(month);
+ $("report").textContent="রিপোর্ট তৈরি হচ্ছে...";
+ const [mr,dr,rr,hr,fr,xr]=await Promise.all([
+  db.from("members").select("id,member_no,member_code,full_name,monthly_share,join_date").order("member_no"),
+  db.from("deposits").select("member_id,amount,deposit_type,deposit_date,deposit_month").lte("deposit_month",asOf),
+  db.from("member_refunds").select("member_id,amount,refund_date").lte("refund_date",asOf),
+  db.from("member_share_history").select("member_id,effective_from,share_count").lte("effective_from",asOf).order("effective_from"),
+  db.from("fines").select("amount,paid,fine_date").gte("fine_date",start).lt("fine_date",end),
+  db.from("expenses").select("amount,expense_date").gte("expense_date",start).lt("expense_date",end)
  ]);
- const er=d.error||f.error||x.error||r.error||s.error;if(er)return $("report").textContent="রিপোর্ট লোড হয়নি: "+er.message;
- const deposits=d.data||[],summary=new Map((s.data||[]).map(z=>[z.member_id,z]));
+ const er=mr.error||dr.error||rr.error||hr.error||fr.error||xr.error;
+ if(er)return $("report").textContent="রিপোর্ট লোড হয়নি: "+er.message;
+ const allMembers=mr.data||[],allDeposits=dr.data||[],allRefunds=rr.data||[],hist=hr.data||[];
+ const monthDeposits=allDeposits.filter(z=>z.deposit_month>=start&&z.deposit_month<end);
  const memberMap=new Map();
- deposits.forEach(z=>{
-  const m=z.members||{},id=z.member_id;
-  if(!memberMap.has(id))memberMap.set(id,{id,code:m.member_code||"",name:m.full_name||"সদস্য",no:m.member_no||"",shares:Number(m.monthly_share||0),monthly:0,special:0,dates:[]});
-  const row=memberMap.get(id);row.shares=Number(m.monthly_share||row.shares||0);row.dates.push(z.deposit_date||`${String(z.deposit_month||start).slice(0,7)}-10`);if(z.deposit_type==="monthly")row.monthly+=Number(z.amount||0);
+ monthDeposits.forEach(z=>{
+  const id=z.member_id;
+  if(!memberMap.has(id))memberMap.set(id,{monthly:0,special:0,dates:[]});
+  const row=memberMap.get(id);
+  if(z.deposit_type==="monthly")row.monthly+=Number(z.amount||0);
   if(z.deposit_type==="december_special")row.special+=Number(z.amount||0);
+  row.dates.push(z.deposit_date||`${String(z.deposit_month||start).slice(0,7)}-10`);
  });
- const allMembers=members.slice().sort((a,b)=>a.member_no-b.member_no);
- const table=document.createElement("table"),thead=document.createElement("thead"),hr=document.createElement("tr");
- ["সদস্য কোড","সদস্যের নাম","শেয়ার","মাসিক জমা","ডিসেম্বরের অতিরিক্ত জমা","মোট জমা","জমার তারিখ","বর্তমান বকেয়া","বর্তমান অগ্রিম"].forEach(t=>hr.append(safeText("th",t)));
- thead.append(hr);table.append(thead);const tbody=document.createElement("tbody");
+ const table=document.createElement("table"),thead=document.createElement("thead"),hrw=document.createElement("tr");
+ ["সদস্য কোড","সদস্যের নাম","শেয়ার","মাসিক জমা","ডিসেম্বরের অতিরিক্ত জমা","মোট জমা","জমার তারিখ","বকেয়া (নির্বাচিত মাস শেষে)","অগ্রিম (নির্বাচিত মাস শেষে)"].forEach(t=>hrw.append(safeText("th",t)));
+ thead.append(hrw);table.append(thead);const tbody=document.createElement("tbody");
  let monthly=0,special=0,arrears=0,advance=0;
  allMembers.forEach(m=>{
-  const z=memberMap.get(m.id)||{monthly:0,special:0,shares:Number(m.monthly_share||0),dates:[]};
-  const a=summary.get(m.id)||{};
-  monthly+=z.monthly;special+=z.special;arrears+=Number(a.total_due_balance||0);advance+=Number(a.advance_balance||0);
-  const tr=document.createElement("tr");
-  [m.member_code,m.full_name,z.shares||m.monthly_share||0,z.monthly?money(z.monthly):"জমা নেই",z.special?money(z.special):"জমা নেই",z.monthly+z.special?money(z.monthly+z.special):"জমা নেই",z.dates?.join(", ")||"—",money(a.total_due_balance),money(a.advance_balance)].forEach(v=>tr.append(safeText("td",v)));
+  const z=memberMap.get(m.id)||{monthly:0,special:0,dates:[]};
+  const h=hist.filter(v=>v.member_id===m.id);
+  const d=allDeposits.filter(v=>v.member_id===m.id);
+  const r=allRefunds.filter(v=>v.member_id===m.id);
+  const a=calculateMemberAsOf(m,d,r,h,month);
+  const shares=sharesForMonth(h,m.monthly_share,month);
+  monthly+=z.monthly;special+=z.special;arrears+=a.arrears;advance+=a.advance;
+  const total=z.monthly+z.special,tr=document.createElement("tr");
+  [m.member_code||"",m.full_name||"",String(shares),z.monthly?money(z.monthly):"জমা নেই",z.special?money(z.special):"জমা নেই",total?money(total):"জমা নেই",z.dates.join(", ")||"—",money(a.arrears),money(a.advance)].forEach(v=>tr.append(safeText("td",v)));
   tbody.append(tr);
  });
  table.append(tbody);
- const sum=a=>(a||[]).reduce((n,z)=>n+Number(z.amount||0),0),finePaid=sum((f.data||[]).filter(z=>z.paid)),expense=sum(x.data),refund=sum(r.data);
+ const sum=a=>(a||[]).reduce((n,z)=>n+Number(z.amount||0),0);
+ const finePaid=sum((fr.data||[]).filter(z=>z.paid)),expense=sum(xr.data);
+ const refundThisMonth=sum(allRefunds.filter(z=>z.refund_date>=start&&z.refund_date<end));
  const box=document.createElement("div");box.className="panel";
  box.append(safeText("b",`${month} মাসের সদস্যভিত্তিক রিপোর্ট`));
  box.append(safeText("p",`মাসিক জমা: ${money(monthly)} | ডিসেম্বরের অতিরিক্ত জমা: ${money(special)} | মোট জমা: ${money(monthly+special)}`));
- box.append(safeText("p",`সর্বশেষ সারাংশ অনুযায়ী বর্তমান মোট বকেয়া: ${money(arrears)} | বর্তমান মোট অগ্রিম: ${money(advance)} (এগুলো নির্বাচিত রিপোর্ট মাসের শেষের হিসাব নয়)`));
- box.append(safeText("p",`জরিমানা আদায়: ${money(finePaid)} | খরচ: ${money(expense)} | সদস্য ফেরত: ${money(refund)}`));
- box.append(safeText("p",`নিট নগদ প্রবাহ: ${money(monthly+special+finePaid-expense-refund)}`));
- const print=actionButton(box,"রিপোর্ট প্রিন্ট করুন","no-print",()=>window.print());
+ box.append(safeText("p",`নির্বাচিত মাসের শেষ তারিখ ${asOf} অনুযায়ী মোট বকেয়া: ${money(arrears)} | মোট অগ্রিম: ${money(advance)}`));
+ box.append(safeText("p",`জরিমানা আদায়: ${money(finePaid)} | খরচ: ${money(expense)} | সদস্য ফেরত: ${money(refundThisMonth)}`));
+ box.append(safeText("p",`নিট নগদ প্রবাহ: ${money(monthly+special+finePaid-expense-refundThisMonth)}`));
+ actionButton(box,"রিপোর্ট প্রিন্ট করুন","no-print",()=>window.print());
  $("report").innerHTML="";$("report").append(box,table);
 };
 $("downloadReport").onclick=()=>{
@@ -575,16 +598,18 @@ $("loadRefunds").onclick=loadRefunds;
 $("loadAudit").onclick=async()=>{const {data,error}=await db.from("audit_logs").select("id,actor_id,table_name,record_id,action,old_data,new_data,created_at").order("created_at",{ascending:false}).limit(100);if(error)return $("audit").textContent="ইতিহাস লোড হয়নি: "+error.message;$("audit").innerHTML="";if(!data?.length){$("audit").textContent="এখনও কোনো পরিবর্তনের রেকর্ড নেই।";return}data.forEach(a=>{const d=document.createElement("div");d.className="item";const label={members:"সদস্য",deposits:"জমা",fines:"জরিমানা",expenses:"খরচ",member_refunds:"ফেরত"}[a.table_name]||a.table_name,verb={INSERT:"যোগ",UPDATE:"সম্পাদনা",DELETE:"ডিলিট"}[a.action]||a.action;d.append(safeText("p",`${new Date(a.created_at).toLocaleString("bn-BD")} | ${label} ${verb} | রেকর্ড: ${a.record_id||"—"} | অ্যাডমিন: ${a.actor_id||"—"}`));const details=document.createElement("details"),summary=safeText("summary","বিস্তারিত দেখুন"),pre=safeText("pre",JSON.stringify({আগের_তথ্য:a.old_data,নতুন_তথ্য:a.new_data},null,2));pre.style.whiteSpace="pre-wrap";pre.style.fontSize="12px";details.append(summary,pre);d.append(details);$("audit").append(d)})};
 
 async function uploadMemberPhoto(memberId,file){
+ if(!memberId)throw Error("সদস্যের ID পাওয়া যায়নি");
  if(!file)throw Error("ছবি নির্বাচন করুন");
  if(!["image/jpeg","image/png","image/webp"].includes(file.type))throw Error("শুধু JPG, PNG বা WEBP ছবি গ্রহণযোগ্য");
  if(file.size>3*1024*1024)throw Error("ছবির সাইজ ৩ MB-এর কম হতে হবে");
  const ext=({"image/jpeg":"jpg","image/png":"png","image/webp":"webp"})[file.type];
- const path=`${memberId}/${Date.now()}.${ext}`;
- const {error:upErr}=await db.storage.from("member-photos").upload(path,file,{upsert:true,contentType:file.type,cacheControl:"3600"});
- if(upErr)throw Error(upErr.message+" (Storage bucket/policy তৈরি আছে কি না দেখুন)");
+ const unique=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+"-"+Math.random().toString(36).slice(2));
+ const path=`${memberId}/${Date.now()}-${unique}.${ext}`;
+ const {error:upErr}=await db.storage.from("member-photos").upload(path,file,{upsert:false,contentType:file.type,cacheControl:"3600"});
+ if(upErr)throw Error(upErr.message+" (member-photos Storage INSERT policy যাচাই করুন)");
  const {data}=db.storage.from("member-photos").getPublicUrl(path);
- const {error:saveErr}=await db.from("members").update({photo_url:data.publicUrl}).eq("id",memberId);
- if(saveErr)throw Error(saveErr.message+" (members.photo_url কলাম আছে কি না দেখুন)");
+ const {error:saveErr}=await db.rpc("set_member_photo_url",{p_member_id:memberId,p_photo_url:data.publicUrl});
+ if(saveErr)throw Error(saveErr.message+" (ছবির URL সংরক্ষণ হয়নি; Photo Setup SQL চালানো প্রয়োজন)");
  return data.publicUrl;
 }
 async function loadMemberDashboard(profile){
@@ -654,19 +679,34 @@ $("memberChangePasswordBtn").onclick=async()=>{
 function renderMemberDepositHistory(rows){
  const box=$("memberHistoryList");box.innerHTML="";
  if(!rows.length){box.textContent="এখনও কোনো জমা অনুমোদিত হয়নি।";return}
- rows.forEach(x=>box.append(safeText("div",`${(x.deposit_month||"").slice(0,7)} | ${x.deposit_type==="monthly"?"মাসিক বিল":"ডিসেম্বর স্পেশাল"} | ${money(x.amount)} | ব্যাংকে জমার তারিখ: ${x.deposit_date||"—"}`)));
+ rows.forEach(x=>box.append(safeText("div",`${(x.deposit_month||"").slice(0,7)} | ${x.deposit_type==="monthly"?"মাসিক বিল":"ডিসেম্বর স্পেশাল"} | ${money(x.amount)} | ব্যাংকে জমার তারিখ: ${x.deposit_date||`${String(x.deposit_month||"").slice(0,7)}-10`}`)));
 }
+let slipAmountRequest=0;
 async function updateSlipAmount(){
- const month=$("slipMonth").value;
- const select=$("slipType");
- const isDecember=!!month&&month.endsWith("-12");
- if(isDecember){if(![...select.options].some(o=>o.value==="december_special")){const op=document.createElement("option");op.value="december_special";op.textContent="ডিসেম্বর স্পেশাল বিল";select.append(op)}}
- else {select.value="monthly";[...select.options].filter(o=>o.value==="december_special").forEach(o=>o.remove())}
- const shares=Number(currentMemberProfile?.monthly_share||0);
- $("slipShareCount").value=shares||"";
- const rate=select.value==="december_special"?6000:2000;
- $("slipAmount").value=shares?shares*rate:"";
- $("billAmountHint").textContent=select.value==="december_special"?`ডিসেম্বর স্পেশাল: প্রতি শেয়ারে ৳৬,০০০ × ${shares} শেয়ার।`:`মাসিক বিল: প্রতি শেয়ারে ৳২,০০০ × ${shares} শেয়ার।`;
+ const request=++slipAmountRequest;
+ const month=$("slipMonth").value,select=$("slipType");
+ const canSpecial=!!month&&month.endsWith("-12")&&month>="2026-12";
+ if(canSpecial){
+  if(![...select.options].some(o=>o.value==="december_special")){
+   const op=document.createElement("option");op.value="december_special";op.textContent="ডিসেম্বর স্পেশাল বিল";select.append(op);
+  }
+ }else{
+  select.value="monthly";
+  [...select.options].filter(o=>o.value==="december_special").forEach(o=>o.remove());
+ }
+ $("slipShareCount").value="";$("slipAmount").value="";
+ if(!month||!currentMemberProfile){$("billAmountHint").textContent="প্রথমে বিলের মাস নির্বাচন করুন।";return;}
+ $("billAmountHint").textContent="নির্বাচিত মাসের কার্যকর শেয়ার যাচাই হচ্ছে...";
+ try{
+  const shares=await applicableShare(currentMemberProfile,month);
+  if(request!==slipAmountRequest)return;
+  const rate=select.value==="december_special"?6000:2000;
+  $("slipShareCount").value=shares;
+  $("slipAmount").value=shares*rate;
+  $("billAmountHint").textContent=`${select.value==="december_special"?"ডিসেম্বর স্পেশাল":"মাসিক বিল"}: প্রতি শেয়ারে ${money(rate)} × ${shares} শেয়ার।`;
+ }catch(e){
+  if(request===slipAmountRequest)$("billAmountHint").textContent="বিলের পরিমাণ নির্ধারণ হয়নি: "+e.message;
+ }
 }
 $("openPayBill").onclick=()=>{$("payBillPanel").classList.toggle("hidden");if(!$ ("payBillPanel").classList.contains("hidden"))updateSlipAmount()};
 $("slipMonth").addEventListener("change",updateSlipAmount);
@@ -701,10 +741,12 @@ $("uploadSlip").onclick=async()=>{
  if(type==="monthly"&&month.endsWith("-12")){/* ডিসেম্বরেও মাসিক বিল বৈধ */}
  if(file.size>5*1024*1024)return msg("slipMsg","ফাইল সর্বোচ্চ ৫ MB হতে পারবে");
  if(!(/^image\//.test(file.type)||file.type==="application/pdf"))return msg("slipMsg","শুধু ছবি বা PDF আপলোড করা যাবে");
- const {data:profile,error:pe}=await db.from("members").select("id,monthly_share").eq("user_id",currentUser.id).single();
+ const {data:profile,error:pe}=await db.from("members").select("id,monthly_share,join_date").eq("user_id",currentUser.id).single();
  if(pe||!profile)return msg("slipMsg","সদস্যের তথ্য পাওয়া যায়নি");
- const expected=Number(profile.monthly_share||0)*(type==="december_special"?6000:2000);
- if(amount!==expected)return msg("slipMsg","শেয়ার অনুযায়ী জমার পরিমাণ মেলেনি। পেজ রিফ্রেশ করে আবার চেষ্টা করুন।");
+ let effectiveShares;
+ try{effectiveShares=await applicableShare(profile,month);}catch(e){return msg("slipMsg","এই মাসের শেয়ার যাচাই হয়নি: "+e.message);}
+ const expected=Number(effectiveShares||0)*(type==="december_special"?6000:2000);
+ if(amount!==expected)return msg("slipMsg",`শেয়ার অনুযায়ী সঠিক জমা ${money(expected)}। পেজ রিফ্রেশ করে আবার চেষ্টা করুন।`);
  const billDate=month+"-01";
  const [paidCheck,pendingCheck]=await Promise.all([
   db.from("deposits").select("id").eq("member_id",profile.id).eq("deposit_month",billDate).eq("deposit_type",type).limit(1),
@@ -808,29 +850,29 @@ async function exportData(kind){
 }
 ["members","deposits","receipts","shares","fines","expenses","refunds","audit"].forEach(k=>$("export"+k[0].toUpperCase()+k.slice(1)).onclick=()=>exportData(k));
 
+let logoutInProgress=false;
 async function logout(event){
  if(event){event.preventDefault();event.stopPropagation();}
+ if(logoutInProgress)return;
+ logoutInProgress=true;
  const buttons=[$("logout"),$("memberLogout"),$("forcedLogout")].filter(Boolean);
  buttons.forEach(b=>{b.disabled=true;b.dataset.oldText=b.textContent;b.textContent="লগআউট হচ্ছে...";});
  let signOutError=null;
- try{const {error}=await db.auth.signOut({scope:"local"});if(error)signOutError=error;}catch(e){signOutError=e;}
- currentUser=null;
- if(typeof pendingPasswordUser!=="undefined")pendingPasswordUser=null;
- if(typeof currentMemberProfile!=="undefined")currentMemberProfile=null;
+ try{
+  const {error}=await db.auth.signOut({scope:"local"});
+  if(error)signOutError=error;
+ }catch(e){signOutError=e;}
+ currentUser=null;pendingPasswordUser=null;currentMemberProfile=null;
  ["app","memberApp","forcedPasswordCard"].forEach(id=>$(id)?.classList.add("hidden"));
  $("loginCard")?.classList.remove("hidden");
  ["password","forcedNewPassword","forcedConfirmPassword","memberCurrentPassword","memberNewPassword","memberConfirmPassword"].forEach(id=>{const el=$(id);if(el)el.value="";});
  msg("loginMsg",signOutError?"লগআউটের সময় সমস্যা হয়েছে: "+(signOutError.message||"আবার চেষ্টা করুন।"):"আপনি সফলভাবে লগআউট হয়েছেন।",!signOutError);
  buttons.forEach(b=>{b.disabled=false;b.textContent=b.dataset.oldText||"লগআউট";delete b.dataset.oldText;});
+ logoutInProgress=false;
 }
-// One delegated handler catches clicks even if a button is re-rendered later.
-document.addEventListener("click",event=>{
- const target=event.target instanceof Element ? event.target.closest("#logout,#memberLogout,#forcedLogout") : null;
- if(!target)return;
- logout(event);
-},true);
-["logout","memberLogout","forcedLogout"].forEach(id=>{const b=$(id);if(b)b.type="button";});
-
+["logout","memberLogout","forcedLogout"].forEach(id=>{
+ const b=$(id);if(b){b.type="button";b.addEventListener("click",logout);}
+});
 // PWA Service Worker
 if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(err=>console.error("PWA service worker:",err)));}
 </script>
