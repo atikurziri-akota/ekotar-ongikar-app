@@ -241,7 +241,7 @@ $("forcedSavePassword").onclick=async()=>{
  }catch(e){msg("forcedPasswordMsg","পাসওয়ার্ড পরিবর্তন হয়নি: "+(e.message||"সমস্যা হয়েছে"))}
  btn.disabled=false;
 };
-$("forcedLogout").onclick=async()=>{await db.auth.signOut();location.reload()};
+
 async function refreshAll(){await Promise.all([loadMembers(),loadStats()])}
 async function loadStats(){const [m,d,f,x]=await Promise.all([db.from("members").select("id",{count:"exact",head:true}),db.from("deposits").select("amount"),db.from("fines").select("amount"),db.from("expenses").select("amount")]);const er=m.error||d.error||f.error||x.error;if(er){console.error(er);return}$("statMembers").textContent=m.count||0;$("statDeposits").textContent=money((d.data||[]).reduce((s,r)=>s+Number(r.amount),0));$("statFines").textContent=money((f.data||[]).reduce((s,r)=>s+Number(r.amount),0));$("statExpenses").textContent=money((x.data||[]).reduce((s,r)=>s+Number(r.amount),0))}
 async function loadMembers(){
@@ -753,7 +753,13 @@ async function logout(event){
  msg("loginMsg",signOutError?"লগআউটের সময় সমস্যা হয়েছে: "+(signOutError.message||"আবার চেষ্টা করুন।"):"আপনি সফলভাবে লগআউট হয়েছেন।",!signOutError);
  buttons.forEach(b=>{b.disabled=false;b.textContent=b.dataset.oldText||"লগআউট";delete b.dataset.oldText;});
 }
-["logout","memberLogout","forcedLogout"].forEach(id=>{const b=$(id);if(b){b.type="button";b.addEventListener("click",logout,true);}});
+// One delegated handler catches clicks even if a button is re-rendered later.
+document.addEventListener("click",event=>{
+ const target=event.target instanceof Element ? event.target.closest("#logout,#memberLogout,#forcedLogout") : null;
+ if(!target)return;
+ logout(event);
+},true);
+["logout","memberLogout","forcedLogout"].forEach(id=>{const b=$(id);if(b)b.type="button";});
 
 // PWA Service Worker
 if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(err=>console.error("PWA service worker:",err)));}
