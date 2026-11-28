@@ -735,32 +735,81 @@ async function exportData(kind){
  }catch(e){msg("exportMsg","ডাউনলোড হয়নি: "+(e.message||"সমস্যা হয়েছে"))}
  btn.disabled=false;
 }
+ 
+// Export buttons
 ["members","deposits","receipts","shares","fines","expenses","refunds","audit"].forEach(k=>{
  const b=$("export"+k[0].toUpperCase()+k.slice(1));
  if(b) b.onclick=()=>exportData(k);
 });
- const b=$("export"+k[0].toUpperCase()+k.slice(1));
- if(b)b.onclick=()=>exportData(k);
-});
+
+// Logout
 async function logout(event){
- if(event){event.preventDefault();event.stopPropagation();}
+ if(event){
+  event.preventDefault();
+  event.stopPropagation();
+ }
+
  const buttons=[$("logout"),$("memberLogout"),$("forcedLogout")].filter(Boolean);
- buttons.forEach(b=>{b.disabled=true;b.textContent="লগআউট হচ্ছে...";});
- ["app","memberApp","forcedPasswordCard"].forEach(id=>$(id)?.classList.add("hidden"));
- $("loginCard")?.classList.remove("hidden");
+ buttons.forEach(b=>{
+  b.disabled=true;
+  b.textContent="লগআউট হচ্ছে...";
+ });
+
+ ["app","memberApp","forcedPasswordCard"].forEach(id=>{
+  const el=$(id);
+  if(el) el.classList.add("hidden");
+ });
+
+ const loginCard=$("loginCard");
+ if(loginCard) loginCard.classList.remove("hidden");
+
  currentUser=null;
- if(typeof pendingPasswordUser!=="undefined")pendingPasswordUser=null;
- if(typeof currentMemberProfile!=="undefined")currentMemberProfile=null;
- ["password","forcedNewPassword","forcedConfirmPassword","memberCurrentPassword","memberNewPassword","memberConfirmPassword"].forEach(id=>{if($(id))$(id).value="";});
+
+ if(typeof pendingPasswordUser!=="undefined") pendingPasswordUser=null;
+ if(typeof currentMemberProfile!=="undefined") currentMemberProfile=null;
+
+ ["password","forcedNewPassword","forcedConfirmPassword","memberCurrentPassword","memberNewPassword","memberConfirmPassword"].forEach(id=>{
+  const field=$(id);
+  if(field) field.value="";
+ });
+
  msg("loginMsg","লগআউট হচ্ছে...",true);
+
  let signOutError=null;
- try{const result=await db.auth.signOut({scope:"local"});if(result?.error)signOutError=result.error;}catch(e){signOutError=e;}
- if(signOutError)msg("loginMsg","লগআউটের সময় সমস্যা হয়েছে: "+(signOutError.message||"আবার চেষ্টা করুন।"));
- else msg("loginMsg","আপনি সফলভাবে লগআউট হয়েছেন।",true);
- buttons.forEach(b=>{b.disabled=false;b.textContent="লগআউট";});
+
+ try{
+  const result=await db.auth.signOut({scope:"local"});
+  if(result && result.error) signOutError=result.error;
+ }catch(e){
+  signOutError=e;
+ }
+
+ if(signOutError){
+  msg("loginMsg","লগআউটের সময় সমস্যা হয়েছে: "+(signOutError.message||"আবার চেষ্টা করুন।"));
+ }else{
+  msg("loginMsg","আপনি সফলভাবে লগআউট হয়েছেন।",true);
+ }
+
+ buttons.forEach(b=>{
+  b.disabled=false;
+  b.textContent="লগআউট";
+ });
 }
-["logout","memberLogout","forcedLogout"].forEach(id=>{const b=$(id);if(!b)return;b.type="button";b.addEventListener("click",logout,true);});
-if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(err=>console.error("PWA service worker:",err)));}
+
+["logout","memberLogout","forcedLogout"].forEach(id=>{
+ const b=$(id);
+ if(!b) return;
+ b.type="button";
+ b.addEventListener("click",logout,true);
+});
+
+// PWA Service Worker
+if("serviceWorker" in navigator){
+ window.addEventListener("load",()=>{
+  navigator.serviceWorker.register("./sw.js")
+   .catch(err=>console.error("PWA service worker:",err));
+ });
+}
 </script>
 </body>
 </html>
