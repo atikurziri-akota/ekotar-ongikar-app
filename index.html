@@ -737,6 +737,9 @@ async function exportData(kind){
 }
 ["members","deposits","receipts","shares","fines","expenses","refunds","audit"].forEach(k=>{
  const b=$("export"+k[0].toUpperCase()+k.slice(1));
+ if(b) b.onclick=()=>exportData(k);
+});
+ const b=$("export"+k[0].toUpperCase()+k.slice(1));
  if(b)b.onclick=()=>exportData(k);
 });
 async function logout(event){
